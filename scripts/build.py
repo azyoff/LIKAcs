@@ -128,9 +128,14 @@ def release_notes() -> str:
 def write_manifest(tag: str, checksums: dict[str, str]) -> Path:
     """Write latest.json - the rate-limit-free source for one-click updates."""
     from likacs.selfupdate import build_manifest
-    sizes = {name: (DIST / name).stat().st_size for name in checksums
+    # Only files actually attached to the GitHub Release get a public URL in
+    # the manifest. The Setup / shortcut exes are Actions artifacts with no
+    # stable download URL, so never advertise a dead link to the updater.
+    public = {name: digest for name, digest in checksums.items()
+              if name in ("LIKAcs.exe", "README.md", "LICENSE")}
+    sizes = {name: (DIST / name).stat().st_size for name in public
              if (DIST / name).is_file()}
-    payload = build_manifest(tag, checksums, sizes, notes=release_notes(),
+    payload = build_manifest(tag, public, sizes, notes=release_notes(),
                              version=VERSION)
     payload["download_url"] = (f"https://github.com/azyoff/LIKAcs/releases/"
                                f"download/{tag}/LIKAcs.exe")

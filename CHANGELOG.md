@@ -48,6 +48,9 @@ one `.exe` on the Releases page.
   `TerminateProcess`), so `LaunchedProcess.alive()` and
   `graceful_close_process()` now use a read-only `tasklist` query with a short
   cache instead. Covered by simulated-Windows tests.
+- **Fixed:** the published `latest.json` now lists only assets that are
+  actually attached to the Release (the Setup/shortcut exes are Actions
+  artifacts), so the updater never sees a dead download URL.
 - **CI hardening:** all five windows (including every Setup wizard page) are
   rendered against a real Tk root from source and inside the built `.exe`;
   the built Setup exe runs `--smoke-install` (install, byte-for-byte verify,
