@@ -572,7 +572,7 @@ class ControlCenter:
         items += [
             {"separator": True},
             {"label": "Open Control Center", "id": "show"},
-            {"label": "Check for Updates / Push to PCs", "id": "updates"},
+            {"label": "Update LIKAcs from GitHub", "id": "updates"},
             {"label": "About LIKAcs", "id": "about"},
             {"separator": True},
             {"label": "Exit LIKAcs", "id": "exit"},

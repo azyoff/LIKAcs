@@ -14,7 +14,7 @@ LIKAcs turns any LAN switch (2 PCs → 50+ PCs) into a cafe match-management sys
 | Maps | `de_dust2` (default), `de_mirage`, `de_inferno`, `de_nuke`, `de_anubis`, `de_ancient`, `de_vertigo`, `de_train` + CS 1.6 classics `fy_snow`, `aim_map`, `de_aztec`, `cs_assault` + any custom map name |
 | Host | The **already installed** Steam game on a gaming PC. The player sitting at the host PC can play too. |
 | Laptop | Lightweight remote Control Center — a few MB, **no Steam, no CS2 install, no Python, no Node** required. The same Control Panel can also be opened directly on PC 1 / PC 2 / any gaming PC. |
-| Updates | GitHub Releases → laptop downloads & SHA-256 verifies → one-click push to every LAN Station PC |
+| Updates | **One click in the app** → GitHub Releases → SHA-256 verified → self-install with rollback; optionally push the same verified exe to every LAN Station PC |
 
 ---
 
@@ -22,19 +22,20 @@ LIKAcs turns any LAN switch (2 PCs → 50+ PCs) into a cafe match-management sys
 
 1. [The 100% VAC-safe promise](#the-100-vac-safe-promise)
 2. [Architecture](#architecture)
-3. [Quick start for a cafe](#quick-start-for-a-cafe)
-4. [1-Click Station Setup](#1-click-station-setup)
-5. [Multiple simultaneous rooms](#multiple-simultaneous-rooms)
-6. [Smart `lika` join and F10](#smart-lika-join-and-f10)
-7. [Cafe rules & live controls](#cafe-rules--live-controls)
-8. [System tray, tooltip and auto-start](#system-tray-tooltip-and-auto-start)
-9. [Start & Connect Selected PCs](#start--connect-selected-pcs)
-10. [Updates: GitHub → laptop → all cafe PCs](#updates-github--laptop--all-cafe-pcs)
-11. [Standalone .exe and GitHub Actions](#standalone-exe-and-github-actions)
-12. [Ports, firewall & LAN keys](#ports-firewall--lan-keys)
-13. [Troubleshooting](#troubleshooting)
-14. [Development](#development)
-15. [License](#license)
+3. [Install (one download, one wizard)](#install-one-download-one-wizard)
+4. [Quick start for a cafe](#quick-start-for-a-cafe)
+5. [1-Click Station Setup](#1-click-station-setup)
+6. [Multiple simultaneous rooms](#multiple-simultaneous-rooms)
+7. [Smart `lika` join and F10](#smart-lika-join-and-f10)
+8. [Cafe rules & live controls](#cafe-rules--live-controls)
+9. [System tray, tooltip and auto-start](#system-tray-tooltip-and-auto-start)
+10. [Start & Connect Selected PCs](#start--connect-selected-pcs)
+11. [Updates: GitHub → laptop → all cafe PCs](#updates-github--laptop--all-cafe-pcs)
+12. [Standalone .exe and GitHub Actions](#standalone-exe-and-github-actions)
+13. [Ports, firewall & LAN keys](#ports-firewall--lan-keys)
+14. [Troubleshooting](#troubleshooting)
+15. [Development](#development)
+16. [License](#license)
 
 ---
 
@@ -88,17 +89,44 @@ flowchart LR
 | Rooms | Persisted in `%APPDATA%\LIKAcs\rooms.json`; per-room host, PCs, preset, map, rules, port, RCON password, state. |
 | Join routing | `alias lika "exec lika_join.cfg"` — `exec` reads the tiny target file **from disk at the moment the alias is used**, so retargeting works **even while CS2 / CS 1.6 is open**. |
 | Tray | `Shell_NotifyIconW` via `ctypes` — no `pystray`/Pillow dependency; the icon is generated in memory. |
-| Build | PyInstaller in GitHub Actions → `LIKAcs.exe`, `LIKAcs-ControlCenter.exe`, `LIKAcs-StationAgent.exe` + `SHA256SUMS.txt` attached to every Release. |
+| Build | PyInstaller in GitHub Actions → **one** `LIKAcs.exe` on the Release page + `latest.json` / `SHA256SUMS.txt` for verified one-click updates. Optional Setup / shortcut exes are Actions artifacts. |
 
 More detail: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/CFG_REFERENCE.md`](docs/CFG_REFERENCE.md), [`docs/PORTS.md`](docs/PORTS.md).
 
 ---
 
+## Install (one download, one wizard)
+
+**[Download `LIKAcs.exe`](https://github.com/azyoff/LIKAcs/releases/latest)** —
+it is the only `.exe` on the Releases page. Double-click it:
+
+1. The **LIKAcs Setup** wizard opens on the first run. Choose the folder,
+   Desktop / Start Menu shortcuts and whether the Station Agent should start
+   silently with Windows. No UAC prompt, no administrator account, no reboot.
+2. Click **Install**. LIKAcs copies itself to
+   `%LOCALAPPDATA%\LIKAcs\LIKAcs.exe`, registers a real **Apps & features**
+   uninstall entry, creates the shortcuts and launches the app.
+3. Every later launch is the app itself. Updates need just one click inside
+   the app — you never download or copy an `.exe` again.
+
+Windows SmartScreen may warn about a new unsigned build: click **More info →
+Run anyway**. You can verify the file with `SHA256SUMS.txt` on the Release page.
+To remove everything, use Windows **Settings → Apps → Installed apps → LIKAcs →
+Uninstall** (or run `LIKAcs.exe --mode=uninstall`). Cafe settings in
+`%APPDATA%\LIKAcs\` are kept.
+
+> **IT / silent rollout:** the workflow build artifact also contains
+> `LIKAcs-Setup.exe` for unattended deployment:
+> `LIKAcs-Setup.exe --silent --autostart --no-launch`. It is intentionally not
+> attached to the Releases page, so there is never a confusing choice of exes.
+
+---
+
 ## Quick start for a cafe
 
-1. **Download [`LIKAcs.exe`](https://github.com/azyoff/LIKAcs/releases/latest)** — the one file for everything (or build it yourself, see below). No installer, no Python, no SteamCMD.
-2. **Laptop / owner desk:** run `LIKAcs.exe` → **"Open Control Center"**. No Steam or CS installation is needed here.
-3. **Every gaming PC:** copy the *same* `LIKAcs.exe`, run it → **"Start Station Agent"**. It minimizes to the tray.
+1. **Install once per PC** with [`LIKAcs.exe`](https://github.com/azyoff/LIKAcs/releases/latest) as described above. No Python, no SteamCMD, no admin rights.
+2. **Laptop / owner desk:** open **LIKAcs** from the Start Menu → **"Open Control Center"**. No Steam or CS installation is needed here.
+3. **Every gaming PC:** install the same file, or push `LIKAcs-Setup.exe --silent`, then open **LIKAcs Station Agent** from the Start Menu. It minimizes to the tray.
 4. On each gaming PC click **1-Click Station Setup**. Then click **Firewall Rules (UAC)** once and accept the Windows UAC prompt (or use the laptop's **Station PCs** tab to do all of them). Optionally enable **Auto-start ON** so the agent starts silently with Windows.
 5. In the Control Center, wait a few seconds — PCs appear automatically in **Station PCs** with their current DHCP IPs. Rename them to `PC 1`, `PC 2`, ... if you like.
 6. In **Rooms & Matches**, create a room, choose game / preset / map / Host PC, tick the PCs in the checklist, click **Apply PC assignment**, then **Start Room**.
@@ -197,7 +225,7 @@ Both the Control Center and the Station Agent minimize cleanly to the Windows 10
 LIKAcs (likaapps.com) | Room 1: 2vs2 playing | Room 2: 1vs1 playing | click for full status
 ```
 
-Windows caps `NOTIFYICONDATA.szTip` at **127 characters**; `fit_tray_tooltip()` truncates gracefully and adds `+N more`. A **right-click** (or left-click for the window) shows the full live status menu with every active room, station count, a clickable **[likaapps.com](http://likaapps.com)** item, About, Check for Updates and Exit. Enable **Auto-start ON** for silent boot (`--mode=station --silent`).
+Windows caps `NOTIFYICONDATA.szTip` at **127 characters**; `fit_tray_tooltip()` truncates gracefully and adds `+N more`. A **right-click** (or left-click for the window) shows the full live status menu with every active room, station count, a clickable **[likaapps.com](http://likaapps.com)** item, **Update LIKAcs from GitHub**, About and Exit. Enable **Auto-start ON** for silent boot (`--mode=station --silent`).
 
 ---
 
@@ -216,10 +244,34 @@ For CS 1.6 there is also an optional fallback using the official `hl.exe -game c
 
 ## Updates: GitHub → laptop → all cafe PCs
 
-1. Tag a release (`v1.0.2`) — [`.github/workflows/release.yml`](.github/workflows/release.yml) builds the `.exe`s, renders all four windows against a real Tk root (from source **and** inside the built `.exe`), and publishes `LIKAcs.exe` + `SHA256SUMS.txt`.
-2. In the laptop's **Updates** tab click **Check for Updates** (GitHub Releases API), then **Download & Verify .exe** (SHA-256 checked against the release digest / `SHA256SUMS.txt`).
-3. Click **Push Update to ALL Station PCs**. The binary is streamed in signed 512 KiB chunks to every discovered agent; each agent re-verifies the hash and size before staging.
-4. Windows cannot overwrite a running `.exe`, so the agent writes a small `.cmd` helper that waits for the process to exit, swaps the file and restarts the agent silently (tick **Restart Station Agents after push**). Games keep running; nothing is interrupted mid-match.
+**To update an installed PC: click `Update LIKAcs` once.** It is in the header,
+the Updates tab, the tray right-click menu, the About dialog and the Station
+Agent window. There is nothing else to do.
+
+1. The app reads `latest.json` from the stable
+   `.../releases/latest/download/latest.json` URL (no API rate limits), then
+   checks the version against the installed one. It also falls back to the
+   GitHub Releases API if that asset is unavailable.
+2. It downloads the new `LIKAcs.exe` and verifies its SHA-256 against **both**
+   the manifest and `SHA256SUMS.txt`. Any mismatch discards the download —
+   nothing on disk changes.
+3. Because Windows locks a running `.exe`, a small `.cmd` helper waits for
+   LIKAcs to exit, keeps a `.bak`, swaps the file, runs
+   `LIKAcs.exe --version` to prove the new build boots, **rolls back
+   automatically** if it does not, then relaunches with the same arguments.
+4. Games keep running; a live match is never interrupted.
+
+**Cafe-wide rollout (advanced):** in the Control Center's Updates tab, click
+**Push update to ALL Station PCs**. One verified download is streamed in signed
+512 KiB chunks to every discovered agent; each agent re-verifies the hash and
+size before staging, and optionally restarts silently. That is the same
+mechanism used by the one-click button, extended across the LAN.
+
+For maintainers: tag `v1.1.0` and
+[`.github/workflows/release.yml`](.github/workflows/release.yml) rebuilds the
+exes, renders all five windows against a real Tk root (from source **and**
+inside the built `.exe`), runs the installer smoke test, writes `latest.json`
+and publishes `LIKAcs.exe` + `latest.json` + `SHA256SUMS.txt`.
 
 See [`docs/UPDATE_FLOW.md`](docs/UPDATE_FLOW.md).
 
@@ -227,16 +279,23 @@ See [`docs/UPDATE_FLOW.md`](docs/UPDATE_FLOW.md).
 
 ## Standalone .exe and GitHub Actions
 
-**GitHub Releases publish only `LIKAcs.exe`** — one file for everything. Windows 10/11, 64-bit, no Python/Node needed, no installer wizard.
+**GitHub Releases publish only `LIKAcs.exe`** — one file for everything.
+Windows 10/11, 64-bit, no Python/Node, no administrator rights. That one file
+is both the installer (first run) and the app (every later run).
 
-| File | Purpose |
-|---|---|
-| `LIKAcs.exe` | **The one you download.** Unified build — first-run chooser, or `--mode=control` / `--mode=station` via shortcut |
-| `LIKAcs-ControlCenter.exe` | Optional one-click shortcut (= `LIKAcs.exe --mode=control`), available in the workflow build artifact |
-| `LIKAcs-StationAgent.exe` | Optional one-click shortcut (= `LIKAcs.exe --mode=station`), available in the workflow build artifact |
-| `SHA256SUMS.txt` | Verified by the in-app updater |
+| File | Where | Purpose |
+|---|---|---|
+| `LIKAcs.exe` | **Release** | **The one you download.** Setup wizard on first run, then the app. Also the asset the one-click updater downloads. |
+| `latest.json` | Release | Version, release notes, SHA-256 and download URL for the updater (read from `/releases/latest/download/`, no rate limits). |
+| `SHA256SUMS.txt` | Release | Independent checksums, cross-checked by the updater. |
+| `README.md`, `LICENSE` | Release | Documentation and MIT license. |
+| `LIKAcs-Setup.exe` | Actions artifact | Optional silent deployment (`--silent --autostart --smoke-install`). Not on the Releases page. |
+| `LIKAcs-ControlCenter.exe`, `LIKAcs-StationAgent.exe` | Actions artifact | Optional one-click shortcuts. Not on the Releases page. |
 
-Useful switches: `--silent` (tray only), `--mode=setup` (headless first-time setup), `--self-test` (headless protocol/safety smoke test), `--smoke-gui` (construct every window against real Tk, then exit), `--version`.
+Useful switches: `--silent` (tray only), `--setup` (force the Setup wizard),
+`--mode=control` / `--mode=station`, `--mode=setup` (headless first-time
+station setup), `--mode=uninstall`, `--check-update` (JSON, no install),
+`--update` (headless one-click update), `--self-test`, `--smoke-gui`, `--version`.
 
 > Older tags **`v1`** and **`v1.0.1`** contain broken Windows builds. Use the latest release.
 
@@ -276,9 +335,9 @@ All ports are configurable in **Settings**. Firewall rules are scoped to `remote
 | RCON commands fail | Start the room first, confirm the host PC is online, check that `-usercon` + `rcon_password` were passed and that no other server owns the port. Unknown CS 1.6 commands are reported in the log. |
 | Host PC can't play | Use `Server mode = listen` (default). CS 1.6 `dedicated` mode also auto-launches a local `hl.exe` client connected to `127.0.0.1`. |
 | Steam URL does nothing | Steam must be installed on the gaming PC (it already is — that's where CS2/1.6 came from). For CS 1.6 enable the `+connect` fallback. |
-| Update did not apply | Tick "Restart Station Agents after push" or restart the agent; check `%APPDATA%\LIKAcs\pending-update.json` and the agent log. |
+| Update did not apply | Click **Update LIKAcs** again. A failed download or boot check rolls back automatically and leaves a `LIKAcs.exe.update-failed` marker; check `%APPDATA%\LIKAcs\logs\LIKAcs.log`. For LAN pushes, tick "Restart Station Agents after push". |
 
-Logs live in the UI log panel; setup / firewall reports are saved in `%APPDATA%\LIKAcs\`.
+Logs live in the UI log panel and in `%APPDATA%\LIKAcs\logs\LIKAcs.log`; setup / firewall reports and `install.json` are saved in `%APPDATA%\LIKAcs\` and `%LOCALAPPDATA%\LIKAcs\` respectively. Friendly error dialogs include **Copy details** and **Open log** buttons — no raw tracebacks.
 
 ---
 
@@ -292,7 +351,7 @@ python scripts/verify_vac_safety.py      # CI VAC-safety guard
 python -m likacs --mode=control          # run the dashboard from source
 ```
 
-Layout: `src/likacs/` → `agent.py`, `control.py`, `cfgs.py`, `network.py`, `http_api.py`, `rcon.py`, `games.py`, `rules.py`, `paths.py`, `setup_windows.py`, `update.py`, `tray.py`, `state.py`, `security.py`, `ui/`. Tests in `tests/`, docs in `docs/`, release automation in `.github/workflows/`. See [`CONTRIBUTING.md`](CONTRIBUTING.md).
+Layout: `src/likacs/` → `agent.py`, `control.py`, `cfgs.py`, `network.py`, `http_api.py`, `rcon.py`, `games.py`, `rules.py`, `paths.py`, `setup_windows.py`, `update.py`, `selfupdate.py`, `installer.py`, `runtime.py`, `tray.py`, `state.py`, `security.py`, `ui/` (including `setup_wizard.py` and `update_panel.py`). Tests in `tests/`, docs in `docs/`, release automation in `.github/workflows/`. See [`CONTRIBUTING.md`](CONTRIBUTING.md).
 
 ---
 

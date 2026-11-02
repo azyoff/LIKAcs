@@ -4,6 +4,56 @@ All notable changes to LIKAcs are documented here. Releases are built by
 [`.github/workflows/release.yml`](.github/workflows/release.yml) and published at
 <https://github.com/azyoff/LIKAcs/releases>. Website: <http://likaapps.com>.
 
+## v1.1.0 - 2026-11-02
+
+**Professional installation and genuinely one-click updates.** Still exactly
+one `.exe` on the Releases page.
+
+- **New: real installer, no UAC.** The downloaded `LIKAcs.exe` now opens the
+  `LIKAcs Setup` wizard on its first run and installs *itself* into
+  `%LOCALAPPDATA%\LIKAcs`. Four wizard pages (welcome / options / progress /
+  done), Desktop and Start Menu shortcuts (LIKAcs, Control Center, Station
+  Agent, likaapps.com), a Start Menu website link, optional "start Station
+  Agent with Windows", launch-after-install, and a working **Apps & features**
+  uninstall entry. All per-user `HKCU` — no elevation, no reboot.
+- **New: uninstaller.** `--mode=uninstall` (also `--silent`) removes shortcuts,
+  the registry entry, auto-start and the install folder via a delayed helper;
+  cafe settings in `%APPDATA%\LIKAcs` are preserved.
+- **New: silent deployment artifact.** `LIKAcs-Setup.exe` embeds
+  `LIKAcs.exe`, supports `--silent`, `--install-dir`, `--autostart`,
+  `--no-shortcuts`, `--no-launch` and `--smoke-install`. Uploaded as a
+  workflow artifact, **not** attached to Releases, so users never choose
+  between multiple exes.
+- **New: one-click self-update from GitHub.** A prominent **Update LIKAcs**
+  button in the header, Updates tab, tray menu, About dialog and Station Agent
+  window. `SelfUpdater` checks, downloads, verifies, stages, restarts and
+  relaunches in a single click.
+- **New: rate-limit-free update manifest.** `latest.json` is published as a
+  Release asset and read from `/releases/latest/download/latest.json`. The
+  GitHub Releases API remains a fallback. `build.py --tag vX` generates the
+  manifest from the real checksums and `docs/RELEASE_NOTES.md`.
+- **New: verified + rollback-safe swap.** SHA-256 is checked against the
+  manifest **and** `SHA256SUMS.txt`; a `.cmd` helper waits for the running PID,
+  keeps a `.bak`, runs `LIKAcs.exe --version` to prove the new build boots, and
+  restores the previous version automatically on failure.
+- **New: one-click LAN rollout kept as an advanced action.** The Control Center
+  can still push the verified exe in signed 512 KiB chunks to all Station PCs.
+- **Polish:** per-monitor DPI awareness for crisp 4K text, a single-instance
+  mutex with a friendly tray hint, and friendly logged errors instead of raw
+  PyInstaller traceback dialogs (`%APPDATA%\LIKAcs\logs\LIKAcs.log` with
+  Copy / Open buttons). Consistent `LIKAcs` / `likaapps.com` branding in the
+  wizard, headers, footers, tray and About.
+- **Fixed: never kill a game to check whether it is alive.** `os.kill(pid, 0)`
+  *terminates* the process on Windows (CPython maps unknown signals to
+  `TerminateProcess`), so `LaunchedProcess.alive()` and
+  `graceful_close_process()` now use a read-only `tasklist` query with a short
+  cache instead. Covered by simulated-Windows tests.
+- **CI hardening:** all five windows (including every Setup wizard page) are
+  rendered against a real Tk root from source and inside the built `.exe`;
+  the built Setup exe runs `--smoke-install` (install, byte-for-byte verify,
+  self-test, uninstall) before a Release is published. 27 new offline tests
+  cover the installer and self-update flow (92 tests total).
+
 ## v1.0.2 - 2026-11-02
 
 **This is the first working Windows build. `v1` and `v1.0.1` are broken — do not use them.**

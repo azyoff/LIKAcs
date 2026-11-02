@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import threading
 import tkinter as tk
 from tkinter import messagebox, ttk
@@ -96,6 +97,11 @@ class StationAgentApp:
         LinkLabel(sub, url=WEBSITE, text=WEBSITE, background=COLORS["panel"],
                   font=FONT_BOLD).pack(side="right", padx=12)
 
+        from .update_panel import UpdateBar
+        self.update_bar = UpdateBar(self.root, on_restart=self.quit_for_update,
+                                    log=self._log, auto_check=not smoke)
+        self.update_bar.pack(fill="x", padx=12, pady=(8, 0))
+
         info = ttk.LabelFrame(self.root, text=" This gaming PC ", style="Card.TLabelframe")
         info.pack(fill="x", padx=12, pady=10)
         rows = [
@@ -128,8 +134,10 @@ class StationAgentApp:
         actions = ttk.Frame(self.root, style="Panel.TFrame")
         actions.pack(fill="x", padx=12, pady=4)
         ttk.Button(actions, text="Minimize to tray", command=self.hide_to_tray).pack(side="left", padx=4)
+        ttk.Button(actions, text="Update LIKAcs", style="Primary.TButton",
+                   command=lambda: self.update_bar.one_click()).pack(side="left", padx=4)
         ttk.Button(actions, text="About / likaapps.com",
-                   command=lambda: show_about(self.root)).pack(side="left", padx=4)
+                   command=lambda: show_about(self.root, lambda: self.update_bar.one_click())).pack(side="left", padx=4)
         ttk.Button(actions, text="Exit", command=self.quit_app).pack(side="right", padx=4)
 
         log_frame = ttk.LabelFrame(self.root, text=" Agent log ", style="Card.TLabelframe")
@@ -221,6 +229,7 @@ class StationAgentApp:
             {"separator": True},
             {"label": "Open Station Agent", "id": "show"},
             {"label": "1-Click Station Setup", "id": "setup"},
+            {"label": "Update LIKAcs from GitHub", "id": "update"},
             {"label": "About LIKAcs / likaapps.com", "id": "about"},
             {"separator": True},
             {"label": "Exit Station Agent", "id": "exit"},
@@ -234,8 +243,11 @@ class StationAgentApp:
             self.show_window()
         elif command == "setup":
             self._setup()
+        elif command == "update":
+            self.show_window()
+            self.update_bar.one_click()
         elif command == "about":
-            show_about(self.root)
+            show_about(self.root, lambda: self.update_bar.one_click())
         elif command == "exit":
             self.quit_app()
 
@@ -263,3 +275,11 @@ class StationAgentApp:
             self.root.destroy()
         except tk.TclError:
             pass
+
+    def quit_for_update(self) -> None:
+        """Exit immediately so the verified update can replace LIKAcs.exe."""
+        try:
+            self.quit_app()
+        except Exception:
+            pass
+        os._exit(0)

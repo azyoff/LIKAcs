@@ -116,12 +116,19 @@ def _build_all_windows() -> int:
                       lambda: ControlCenterApp(control=ControlCenter(), root=root, smoke=True))
                 _clear(root)
 
-                # 4. Full Station Agent window.
+                # 4. Full Station Agent window (including the one-click update bar).
                 from ..agent import StationAgent
                 from .station_agent import StationAgentApp
 
                 stage("station agent",
                       lambda: StationAgentApp(agent=StationAgent(), root=root, smoke=True))
+                _clear(root)
+
+                # 5. All four pages of the Setup wizard (the first-run
+                #    experience of the single published LIKAcs.exe).
+                from .setup_wizard import smoke_wizard
+
+                stage("setup wizard", lambda: smoke_wizard(root))
                 _clear(root)
 
                 _say("GUI SMOKE OK: " + ", ".join(built))

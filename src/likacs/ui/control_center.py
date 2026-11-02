@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import os
 import threading
 import tkinter as tk
 from tkinter import messagebox, simpledialog, ttk
@@ -38,6 +39,7 @@ class ControlCenterApp:
         self.root.minsize(1120, 720)
         apply_theme(self.root)
 
+        self.smoke = smoke
         self.selected_room_id: str | None = None
         self.shared_selected: set[str] = set()
         self.update_release: Any = None
@@ -134,7 +136,9 @@ class ControlCenterApp:
                   foreground=COLORS["muted"], background=COLORS["panel"]).pack(side="left")
         LinkLabel(sub, url=WEBSITE, text=WEBSITE,
                   background=COLORS["panel"], font=FONT_BOLD).pack(side="right", padx=12)
-        ttk.Button(sub, text="About", command=lambda: show_about(self.root, self._check_updates)).pack(side="right")
+        ttk.Button(sub, text="Update LIKAcs", style="Primary.TButton",
+                   command=self._one_click_update).pack(side="right", padx=6)
+        ttk.Button(sub, text="About", command=lambda: show_about(self.root, self._one_click_update)).pack(side="right")
         ttk.Button(sub, text="Minimize to tray", command=self.hide_to_tray).pack(side="right", padx=6)
 
         self.notebook = ttk.Notebook(self.root)
@@ -364,37 +368,20 @@ class ControlCenterApp:
 
     # ---------------------------------------------------------------- updates
     def _tab_updates(self) -> None:
+        """One-click self-update, verified directly from GitHub Releases."""
         tab = ttk.Frame(self.notebook)
         self.notebook.add(tab, text="  Updates  ")
         self.updates_tab = tab
-        head = ttk.LabelFrame(tab, text=" Check for Updates & Push Update to Cafe PCs ",
-                              style="Card.TLabelframe")
-        head.pack(fill="x", padx=10, pady=10)
-        self.current_version_var = tk.StringVar(value=f"Installed: v{VERSION}")
-        self.latest_version_var = tk.StringVar(value="Latest on GitHub: not checked yet")
-        ttk.Label(head, textvariable=self.current_version_var, style="Panel.TLabel").grid(row=0, column=0, sticky="w", padx=10, pady=6)
-        ttk.Label(head, textvariable=self.latest_version_var, style="Panel.TLabel").grid(row=0, column=1, sticky="w", padx=10, pady=6)
-        ttk.Label(head, text=f"Release source: github.com/{self.control.settings.github_owner}/{self.control.settings.github_repo}/releases",
-                  font=FONT_SMALL, foreground=COLORS["muted"], background=COLORS["panel"]).grid(
-                      row=1, column=0, columnspan=3, sticky="w", padx=10)
-        self.restart_agents_var = tk.BooleanVar(value=False)
-        ttk.Checkbutton(head, text="Restart Station Agents after push (applies update)",
-                        variable=self.restart_agents_var).grid(row=2, column=0, columnspan=2, sticky="w", padx=10, pady=6)
-        ttk.Button(head, text="Check for Updates", command=self._check_updates).grid(row=3, column=0, padx=10, pady=8, sticky="w")
-        ttk.Button(head, text="Download & Verify .exe", command=self._download_update).grid(row=3, column=1, padx=6, pady=8, sticky="w")
-        ttk.Button(head, text="Push Update to ALL Station PCs", style="Primary.TButton",
-                   command=self._push_update).grid(row=3, column=2, padx=6, pady=8, sticky="w")
-        self.update_progress = ttk.Progressbar(head, mode="determinate", maximum=100, length=420)
-        self.update_progress.grid(row=4, column=0, columnspan=3, padx=10, pady=(0, 8), sticky="ew")
-
-        notes = ttk.LabelFrame(tab, text=" Release notes ", style="Card.TLabelframe")
-        notes.pack(fill="both", expand=True, padx=10, pady=4)
-        self.release_notes = tk.Text(notes, wrap="word", background=COLORS["panel2"],
-                                     foreground=COLORS["fg"], relief="flat", height=14)
-        self.release_notes.insert("1.0", "Click 'Check for Updates' to see the latest GitHub Release.\n\n"
-                                  "Every pushed .exe is SHA-256 verified before a station stages it.")
-        self.release_notes.configure(state="disabled")
-        self.release_notes.pack(fill="both", expand=True, padx=8, pady=8)
+        from .update_panel import UpdatePanel
+        self.update_panel = UpdatePanel(
+            tab,
+            run_async=self._async,
+            on_restart=self.quit_for_update,
+            log=self._log,
+            on_push=self._push_latest_update,
+            auto_check=bool(self.control.settings.auto_check_updates) and not self.smoke,
+        )
+        self.update_panel.pack(fill="both", expand=True)
 
     # --------------------------------------------------------------- settings
     def _tab_settings(self) -> None:
@@ -444,7 +431,7 @@ class ControlCenterApp:
         ttk.Button(bar, text="Firewall Rules on this PC (UAC)",
                    command=self._firewall_local).pack(side="left", padx=4)
         ttk.Button(bar, text="Open likaapps.com", command=lambda: open_url(WEBSITE)).pack(side="left", padx=4)
-        ttk.Button(bar, text="About", command=lambda: show_about(self.root, self._check_updates)).pack(side="left", padx=4)
+        ttk.Button(bar, text="About", command=lambda: show_about(self.root, self._one_click_update)).pack(side="left", padx=4)
 
     def _tab_about(self) -> None:
         tab = ttk.Frame(self.notebook)
@@ -462,7 +449,7 @@ class ControlCenterApp:
         text.insert("1.0", ABOUT_TEXT)
         text.configure(state="disabled")
         text.pack(fill="both", expand=True, padx=16, pady=16)
-        ttk.Button(frame, text="Open About dialog", command=lambda: show_about(self.root, self._check_updates)).pack(pady=(0, 16))
+        ttk.Button(frame, text="Open About dialog", command=lambda: show_about(self.root, self._one_click_update)).pack(pady=(0, 16))
 
     # --------------------------------------------------------------- refresh
     def _refresh_all(self) -> None:
@@ -804,61 +791,30 @@ class ControlCenterApp:
                         f"Auto-start: {result.get('autostart', {}).get('enabled')}"))
 
     # --------------------------------------------------------------- updates
-    def _check_updates(self) -> None:
-        def done(result: dict[str, Any]) -> None:
-            if not result.get("ok"):
-                messagebox.showwarning("LIKAcs", f"Update check failed: {result.get('error')}")
-                return
-            latest = result.get("latest", "?")
-            self.latest_version_var.set(f"Latest on GitHub: {latest}")
-            release = result.get("release")
-            self.update_release = release
-            self.update_version = latest
-            text = (release.body if release else "") or "(no release notes)"
-            self.release_notes.configure(state="normal")
-            self.release_notes.delete("1.0", "end")
-            self.release_notes.insert("1.0",
-                f"v{latest} - {'UPDATE AVAILABLE' if result.get('update_available') else 'you are up to date'}\n\n{text}")
-            self.release_notes.configure(state="disabled")
-            self._log(f"Update check: installed v{VERSION}, latest {latest}")
-        self._async(self.control.check_updates, done, busy="Checking GitHub Releases...")
+    def _one_click_update(self) -> None:
+        """Header / About / tray entry point: show the Updates tab and update."""
+        self.show_window()
+        try:
+            self.notebook.select(self.updates_tab)
+        except tk.TclError:
+            pass
+        self.update_panel.one_click()
 
-    def _progress(self, label: str, done: int, total: int, extra: str = "") -> None:
-        if total:
-            self.update_progress["value"] = min(100, int(done * 100 / total))
-        self.status_var.set(f"{label}: {done}/{total} bytes {extra}")
-
-    def _download_update(self) -> None:
-        if not self.update_release:
-            messagebox.showinfo("LIKAcs", "Click 'Check for Updates' first.")
-            return
-        def progress(label: str, done: int, total: int, extra: str) -> None:
-            self._post(lambda: self._progress(label, done, total, extra))
-        def done(result: dict[str, Any]) -> None:
-            if result.get("ok"):
-                self.update_asset_path = result["path"]
-                self.update_version = result.get("version", self.update_version)
-                self._log(f"Downloaded verified LIKAcs.exe ({result.get('size')} bytes, sha256 {result.get('sha256', '')[:12]}...)")
-            else:
-                messagebox.showerror("LIKAcs", str(result.get("error")))
-        self._async(lambda: self.control.download_update(self.update_release, progress), done,
-                    busy="Downloading verified .exe from GitHub Releases...")
-
-    def _push_update(self) -> None:
-        if not self.update_asset_path:
-            messagebox.showinfo("LIKAcs", "Download & verify the .exe first.")
-            return
-        stations = len(self.control.online_stations())
-        if not messagebox.askyesno("LIKAcs", f"Push verified update {self.update_version} to {stations} Station PC(s)?"):
-            return
-        def progress(label: str, done: int, total: int, extra: str) -> None:
-            self._post(lambda: self._progress(label, done, total, extra))
-        restart = self.restart_agents_var.get()
-        self._async(lambda: self.control.push_update(self.update_asset_path, self.update_version,
-                                                     progress=progress, restart_agents=restart),
-                    lambda result: self._log(
-                        f"Update push: {sum(1 for item in result.get('results', []) if item.get('ok'))}/{len(result.get('results', []))} PC(s)"),
-                    busy="Pushing verified update to all LAN stations...")
+    def _push_latest_update(self, progress: Callable[..., None],
+                            restart_agents: bool = False) -> dict[str, Any]:
+        """Advanced rollout: check GitHub, verify one exe, push to all stations."""
+        checked = self.control.check_updates()
+        if not checked.get("ok"):
+            return {"ok": False, "results": [], "error": str(checked.get("error"))}
+        release = checked.get("release")
+        if release is None:
+            return {"ok": False, "results": [], "error": "no release metadata"}
+        downloaded = self.control.download_update(release, progress)
+        if not downloaded.get("ok"):
+            return {"ok": False, "results": [], "error": str(downloaded.get("error"))}
+        return self.control.push_update(
+            str(downloaded["path"]), str(downloaded.get("version") or checked.get("latest")),
+            progress=progress, restart_agents=restart_agents)
 
     # --------------------------------------------------------------- settings
     def _save_settings(self) -> None:
@@ -899,11 +855,9 @@ class ControlCenterApp:
         elif command == "show":
             self.show_window()
         elif command == "about":
-            show_about(self.root, self._check_updates)
+            show_about(self.root, self._one_click_update)
         elif command == "updates":
-            self.show_window()
-            self.notebook.select(self.updates_tab)
-            self._check_updates()
+            self._one_click_update()
         elif command == "exit":
             self.quit_app()
 
@@ -938,3 +892,11 @@ class ControlCenterApp:
             self.root.destroy()
         except tk.TclError:
             pass
+
+    def quit_for_update(self) -> None:
+        """Exit immediately so the verified update can replace LIKAcs.exe."""
+        try:
+            self.quit_app()
+        except Exception:
+            pass
+        os._exit(0)

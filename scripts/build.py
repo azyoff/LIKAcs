@@ -1,17 +1,25 @@
 """Build standalone Windows 10/11 .exe files with PyInstaller.
 
 Usage:
-    python scripts/build.py             # all three exes + SHA256SUMS.txt
-    python scripts/build.py --quick     # unified LIKAcs.exe only (CI smoke build)
+    python scripts/build.py             # all exes + SHA256SUMS.txt + latest.json
+    python scripts/build.py --quick     # LIKAcs.exe only (CI smoke build)
+    python scripts/build.py --tag v1.1.0
 
-No runtime dependencies: the produced .exe embeds CPython 3.11, Tkinter and
-the LIKAcs standard-library-only package. Cafe PCs need no Python or Node.
+Published to GitHub Releases: ONE user-facing exe, ``LIKAcs.exe``. On first
+run it shows the Setup wizard and installs itself per-user (no UAC). On later
+runs it is the app. ``LIKAcs-Setup.exe`` is an OPTIONAL workflow artifact for
+silent cafe deployment (``--silent --autostart``); it embeds LIKAcs.exe.
+
+No runtime dependencies: each .exe embeds CPython 3.11, Tkinter and the
+standard-library-only LIKAcs package. Cafe PCs need no Python or Node.
 """
 
 from __future__ import annotations
 
 import argparse
 import hashlib
+import json
+import os
 import subprocess
 import sys
 from pathlib import Path
@@ -22,6 +30,10 @@ DIST = ROOT / "dist"
 BUILD = ROOT / "build"
 SPECS = BUILD / "specs"
 ICON = ROOT / "assets" / "lika.ico"
+SETUP_NAME = "LIKAcs-Setup"
+
+sys.path.insert(0, str(SRC))
+from likacs import VERSION  # noqa: E402
 
 TARGETS = [
     ("LIKAcs", "scripts/entry_unified.py"),
@@ -32,16 +44,22 @@ TARGETS = [
 # Imports that happen inside functions/threads are invisible to PyInstaller's
 # static analysis, so list them explicitly.
 HIDDEN_IMPORTS = [
+    "likacs.installer",
+    "likacs.runtime",
+    "likacs.selfupdate",
     "likacs.selftest",
     "likacs.setup_windows",
     "likacs.ui.about",
     "likacs.ui.control_center",
     "likacs.ui.mode_chooser",
+    "likacs.ui.setup_wizard",
     "likacs.ui.smoke",
     "likacs.ui.station_agent",
     "likacs.ui.theme",
+    "likacs.ui.update_panel",
     "likacs.ui.widgets",
     "tkinter", "tkinter.ttk", "tkinter.messagebox", "tkinter.simpledialog",
+    "tkinter.filedialog", "tkinter.font",
     "winreg",
 ]
 
@@ -55,13 +73,12 @@ def sha256(path: Path) -> str:
 
 
 def ensure_icon() -> None:
-    sys.path.insert(0, str(SRC))
     from likacs.icon import ico_bytes
     ICON.parent.mkdir(parents=True, exist_ok=True)
     ICON.write_bytes(ico_bytes())
 
 
-def build_one(name: str, entry: str) -> Path:
+def build_one(name: str, entry: str, extra_args: list[str] | None = None) -> Path:
     command = [
         sys.executable, "-m", "PyInstaller",
         "--onefile", "--windowed", "--clean", "--noconfirm",
@@ -72,6 +89,7 @@ def build_one(name: str, entry: str) -> Path:
         "--workpath", str(BUILD / name),
         "--specpath", str(SPECS),
     ]
+    command += list(extra_args or [])
     for module in HIDDEN_IMPORTS:
         command += ["--hidden-import", module]
     command.append(str(ROOT / entry))
@@ -84,20 +102,53 @@ def build_one(name: str, entry: str) -> Path:
     return output
 
 
-def write_checksums(files: list[Path]) -> Path:
+def write_checksums(files: list[Path]) -> tuple[Path, dict[str, str]]:
     target = DIST / "SHA256SUMS.txt"
+    checksums: dict[str, str] = {}
     lines = []
     for path in files:
         if path.is_file():
-            lines.append(f"{sha256(path)}  {path.name}\n")
+            checksums[path.name] = sha256(path)
+            lines.append(f"{checksums[path.name]}  {path.name}\n")
     target.write_text("".join(lines), encoding="utf-8")
     print(f"\nWrote {target}")
-    return target
+    return target, checksums
+
+
+SITE = "http://likaapps.com"
+
+
+def release_notes() -> str:
+    path = ROOT / "docs" / "RELEASE_NOTES.md"
+    if path.is_file():
+        return path.read_text(encoding="utf-8").strip()
+    return f"LIKAcs v{VERSION} - {SITE}"
+
+
+def write_manifest(tag: str, checksums: dict[str, str]) -> Path:
+    """Write latest.json - the rate-limit-free source for one-click updates."""
+    from likacs.selfupdate import build_manifest
+    sizes = {name: (DIST / name).stat().st_size for name in checksums
+             if (DIST / name).is_file()}
+    payload = build_manifest(tag, checksums, sizes, notes=release_notes(),
+                             version=VERSION)
+    payload["download_url"] = (f"https://github.com/azyoff/LIKAcs/releases/"
+                               f"download/{tag}/LIKAcs.exe")
+    payload["download_name"] = "LIKAcs.exe"
+    path = DIST / "latest.json"
+    path.write_text(json.dumps(payload, indent=2) + "\n", encoding="utf-8")
+    print(f"Wrote {path}")
+    return path
 
 
 def main(argv: list[str] | None = None) -> int:
     parser = argparse.ArgumentParser(description="Build LIKAcs Windows executables")
-    parser.add_argument("--quick", action="store_true", help="build only the unified exe")
+    parser.add_argument("--quick", action="store_true",
+                        help="build only LIKAcs.exe (CI smoke build)")
+    parser.add_argument("--tag", default=f"v{VERSION}",
+                        help="release tag used in latest.json")
+    parser.add_argument("--no-setup", action="store_true",
+                        help="skip the optional silent-deployment Setup exe")
     args = parser.parse_args(argv)
 
     try:
@@ -114,12 +165,21 @@ def main(argv: list[str] | None = None) -> int:
 
     targets = TARGETS[:1] if args.quick else TARGETS
     built = [build_one(name, entry) for name, entry in targets]
+
+    if not args.quick and not args.no_setup:
+        # The setup exe embeds the app exe that was just built.
+        payload = DIST / "LIKAcs.exe"
+        built.append(build_one(
+            SETUP_NAME, "scripts/entry_setup.py",
+            ["--add-data", f"{payload}{os.pathsep}."]))
+
     for extra in (ROOT / "README.md", ROOT / "LICENSE"):
         if extra.is_file():
             built.append(extra)
-    write_checksums(built)
+    _checksums_file, checksums = write_checksums(built)
+    write_manifest(args.tag, checksums)
     print("\nRelease artifacts:")
-    for path in DIST.iterdir():
+    for path in sorted(DIST.glob("*")):
         if path.is_file():
             print(f"  {path.name}")
     return 0

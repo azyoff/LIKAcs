@@ -7,16 +7,16 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release tag (e.g. v1.0.2)'
+        description: 'Release tag (e.g. v1.1.0)'
         required: true
-        default: 'v1.0.2'
+        default: 'v1.1.0'
 
 permissions:
   contents: write
 
 jobs:
   release:
-    name: Build 3 standalone exes and attach to GitHub Release
+    name: Build, verify and publish one user-facing exe
     runs-on: windows-latest
     env:
       PYTHONPATH: src
@@ -37,7 +37,7 @@ jobs:
       - name: VAC-safety static guard
         run: python scripts/verify_vac_safety.py
 
-      - name: Unit tests
+      - name: Unit tests (installer, self-update, protocols, GUI font guards)
         run: python -m unittest discover -s tests -v
 
       - name: Headless self-test
@@ -46,19 +46,19 @@ jobs:
       # Windows-only regression guard: importing likacs.tray executes its
       # ctypes.windll/wintypes block. A missing wintypes attribute (HCURSOR)
       # previously crashed every GUI .exe at startup while headless checks
-      # stayed green. This step fails the release before any .exe is published.
+      # stayed green.
       - name: Verify Windows GUI imports (ctypes / wintypes / Tkinter)
-        run: python -c "import likacs.tray; from likacs.ui import theme, widgets, about, mode_chooser, control_center, station_agent, smoke; print('Windows GUI imports OK')"
+        run: python -c "import likacs.tray, likacs.installer, likacs.selfupdate, likacs.runtime; from likacs.ui import theme, widgets, about, mode_chooser, control_center, station_agent, setup_wizard, update_panel, smoke; print('Windows GUI + installer imports OK')"
 
       # Import checks alone are not enough: Tk parses option-database font
       # strings only when a widget is created. v1.0.1 passed every import
-      # check and still crashed on the first ttk.Label. Build all four real
+      # check and still crashed on the first ttk.Label. Build all five real
       # windows here, and again inside the frozen .exe below.
       - name: Render every GUI window against a real Tk root
         run: python scripts/smoke_gui.py
 
-      - name: Build standalone Windows executables
-        run: python scripts/build.py
+      - name: Build standalone Windows executables + latest.json
+        run: python scripts/build.py --tag "${{ github.event.inputs.tag || github.ref_name }}"
 
       # --windowed exes have no console. Start-Process -Wait -PassThru plus an
       # explicit ExitCode check guarantees the check really ran; a bare
@@ -73,12 +73,27 @@ jobs:
           $p = Start-Process -FilePath ".\dist\LIKAcs.exe" -ArgumentList "--smoke-gui" -Wait -PassThru
           if ($p.ExitCode -ne 0) { throw "GUI smoke failed with exit code $($p.ExitCode)" }
 
+      - name: Run the installer end-to-end inside the built Setup .exe
+        run: |
+          $p = Start-Process -FilePath ".\dist\LIKAcs-Setup.exe" -ArgumentList "--smoke-install" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "installer smoke test failed with exit code $($p.ExitCode)" }
+
+      - name: Verify latest.json matches the real checksums
+        run: |
+          $m = Get-Content ".\dist\latest.json" -Raw | ConvertFrom-Json
+          $h = (Get-FileHash ".\dist\LIKAcs.exe" -Algorithm SHA256).Hash.ToLower()
+          if ($m.assets.'LIKAcs.exe'.sha256 -ne $h) { throw "latest.json digest does not match LIKAcs.exe" }
+          if ($m.tag -ne "${{ github.event.inputs.tag || github.ref_name }}") { throw "latest.json has the wrong tag" }
+          if (-not (Test-Path ".\dist\SHA256SUMS.txt")) { throw "SHA256SUMS.txt missing" }
+          Write-Host "latest.json OK: $($m.tag) / $h"
+
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:
           name: LIKAcs-windows-release
           path: |
             dist/*.exe
+            dist/latest.json
             dist/SHA256SUMS.txt
           if-no-files-found: error
 
@@ -88,22 +103,36 @@ jobs:
           tag_name: ${{ github.event.inputs.tag || github.ref_name }}
           name: LIKAcs ${{ github.event.inputs.tag || github.ref_name }}
           body: |
-            ## ⬇️ Install: download **`LIKAcs.exe`**
+            ## ⬇️ Install: download **`LIKAcs.exe`** — the only .exe on this page
 
-            **One file for everything.** On the owner's laptop run it and choose
-            **Open Control Center**; copy the same file to every gaming PC, run it
-            and choose **Start Station Agent**. No installer, no Python, no Steam
-            on the laptop. If Windows SmartScreen warns about a new build, click
-            **More info → Run anyway** (verify with `SHA256SUMS.txt` if unsure).
+            1. Download **`LIKAcs.exe`** and double-click it. The **LIKAcs Setup**
+               wizard opens on the first run and installs the app per-user:
+               Start Menu + Desktop shortcuts, an **Apps & features** uninstall
+               entry, optional "start with Windows", and launch when finished.
+               **No administrator rights, no UAC, no reboot, no Python.**
+            2. On the owner's laptop choose **Open Control Center**. On each
+               gaming PC install the same file and choose **Start Station Agent**.
+            3. For every future version, just click **Update LIKAcs** once inside
+               the app (header, Updates tab, tray menu or About). It downloads
+               from GitHub, verifies SHA-256 against `latest.json` **and**
+               `SHA256SUMS.txt`, swaps itself safely with automatic rollback,
+               and restarts. Nothing else to download — ever.
 
-            The optional `LIKAcs-ControlCenter.exe` / `LIKAcs-StationAgent.exe`
-            one-click shortcuts are still built and available in the workflow
-            artifact, but are not attached here to keep it simple.
+            If Windows SmartScreen warns about a new build, click **More info →
+            Run anyway**. `SHA256SUMS.txt` is attached for manual verification.
+
+            `latest.json` is the update manifest read by the app (not a download
+            for humans). `LIKAcs-Setup.exe` for silent IT deployment
+            (`--silent --autostart`) is available in the workflow **artifact**,
+            intentionally not attached here — there is never a confusing choice
+            of exes.
 
             > ⚠️ **`v1`** (tray `wintypes.HCURSOR` import crash) and
             > **`v1.0.1`** (unbraced `Segoe UI 10` font) are broken — do not
             > download them. This build is verified by a real Tk render of all
-            > four windows, both from source and inside the built .exe.
+            > five windows (from source **and** inside the built .exe), an
+            > end-to-end install/uninstall smoke test, 92 unit tests and the
+            > headless self-test.
           generate_release_notes: true
           make_latest: true
           draft: false
@@ -111,6 +140,7 @@ jobs:
           files: |
             dist/SHA256SUMS.txt
             dist/LIKAcs.exe
+            dist/latest.json
             README.md
             LICENSE
         env:
