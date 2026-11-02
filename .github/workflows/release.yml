@@ -9,7 +9,7 @@ on:
       tag:
         description: 'Release tag (e.g. v1.0.1)'
         required: true
-        default: 'v1.0.0'
+        default: 'v1.0.1'
 
 permissions:
   contents: write
@@ -43,6 +43,13 @@ jobs:
       - name: Headless self-test
         run: python -m likacs --self-test
 
+      # Windows-only regression guard: importing likacs.tray executes its
+      # ctypes.windll/wintypes block. A missing wintypes attribute (HCURSOR)
+      # previously crashed every GUI .exe at startup while headless checks
+      # stayed green. This step fails the release before any .exe is published.
+      - name: Verify Windows GUI imports (ctypes / wintypes / Tkinter)
+        run: python -c "import likacs.tray; from likacs.ui import theme, widgets, about, mode_chooser, control_center, station_agent; print('Windows GUI imports OK')"
+
       - name: Build standalone Windows executables
         run: python scripts/build.py
 
@@ -58,19 +65,34 @@ jobs:
             dist/SHA256SUMS.txt
           if-no-files-found: error
 
-      - name: Create GitHub Release with all .exe files
+      - name: Create GitHub Release (one exe for everything)
         uses: softprops/action-gh-release@v2
         with:
           tag_name: ${{ github.event.inputs.tag || github.ref_name }}
           name: LIKAcs ${{ github.event.inputs.tag || github.ref_name }}
+          body: |
+            ## ⬇️ Install: download **`LIKAcs.exe`**
+
+            **One file for everything.** On the owner's laptop run it and choose
+            **Open Control Center**; copy the same file to every gaming PC, run it
+            and choose **Start Station Agent**. No installer, no Python, no Steam
+            on the laptop. If Windows SmartScreen warns about a new build, click
+            **More info → Run anyway** (verify with `SHA256SUMS.txt` if unsure).
+
+            The optional `LIKAcs-ControlCenter.exe` / `LIKAcs-StationAgent.exe`
+            one-click shortcuts are still built and available in the workflow
+            artifact, but are not attached here to keep it simple.
+
+            > ⚠️ The **`v1`** exes are broken (Windows tray `wintypes.HCURSOR`
+            > import crash). Use this release instead. Fix verified by a
+            > Windows GUI-import CI check before publishing.
           generate_release_notes: true
+          make_latest: true
           draft: false
           prerelease: false
           files: |
             dist/SHA256SUMS.txt
             dist/LIKAcs.exe
-            dist/LIKAcs-ControlCenter.exe
-            dist/LIKAcs-StationAgent.exe
             README.md
             LICENSE
         env:

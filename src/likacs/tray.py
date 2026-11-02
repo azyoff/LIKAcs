@@ -54,6 +54,12 @@ if IS_WINDOWS:
     kernel32 = ctypes.windll.kernel32
     shell32 = ctypes.windll.shell32
 
+    # ctypes.wintypes has NO HCURSOR attribute (verified on Python 3.11); it is
+    # simply a HANDLE typedef in winuser.h. Referencing the missing attribute
+    # here crashed every Windows GUI .exe at import time. Use a safe alias so
+    # the WNDCLASSW structure always builds, on every Python/Tk build.
+    HCURSOR = getattr(wintypes, "HCURSOR", wintypes.HANDLE)
+
     LRESULT = ctypes.c_ssize_t
     WNDPROC = ctypes.WINFUNCTYPE(LRESULT, wintypes.HWND, wintypes.UINT,
                                  wintypes.WPARAM, wintypes.LPARAM)
@@ -92,7 +98,7 @@ if IS_WINDOWS:
             ("style", wintypes.UINT), ("lpfnWndProc", WNDPROC),
             ("cbClsExtra", ctypes.c_int), ("cbWndExtra", ctypes.c_int),
             ("hInstance", wintypes.HINSTANCE), ("hIcon", wintypes.HICON),
-            ("hCursor", wintypes.HCURSOR), ("hbrBackground", wintypes.HBRUSH),
+            ("hCursor", HCURSOR), ("hbrBackground", wintypes.HBRUSH),
             ("lpszMenuName", wintypes.LPCWSTR), ("lpszClassName", wintypes.LPCWSTR),
         ]
 
@@ -267,6 +273,7 @@ if IS_WINDOWS:
                 wintypes.HWND(HWND_MESSAGE), None, wnd_class.hInstance, None,
             )
             if not self._hwnd:
+                self._hwnd = None
                 self.logger("tray: could not create message window")
                 return
             data = self._icon_data()
