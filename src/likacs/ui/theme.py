@@ -34,7 +34,9 @@ def apply_theme(root: tk.Tk) -> ttk.Style:
     except tk.TclError:
         pass
     root.configure(background=COLORS["bg"])
-    root.option_add("*Font", FONT)
+    # option_add needs a single Tcl font string; a Python tuple would be
+    # flattened into extra arguments and silently become an option priority.
+    root.option_add("*Font", "Segoe UI 10")
     root.option_add("*Background", COLORS["panel"])
 
     style.configure(".", background=COLORS["bg"], foreground=COLORS["fg"],

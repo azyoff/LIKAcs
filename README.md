@@ -96,15 +96,15 @@ More detail: [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md), [`docs/CFG_REFERENC
 
 ## Quick start for a cafe
 
-1. **Download** the three `.exe` files from the [latest GitHub Release](https://github.com/azyoff/LIKAcs/releases) (or build them yourself, see below). No installer, no Python, no SteamCMD.
-2. **Laptop / owner desk:** run `LIKAcs-ControlCenter.exe` (or `LIKAcs.exe` → "Open Control Center"). No Steam or CS installation is needed here.
-3. **Every gaming PC:** run `LIKAcs-StationAgent.exe` (or `LIKAcs.exe` → "Start Station Agent"). It minimizes to the tray.
+1. **Download [`LIKAcs.exe`](https://github.com/azyoff/LIKAcs/releases/latest)** — the one file for everything (or build it yourself, see below). No installer, no Python, no SteamCMD.
+2. **Laptop / owner desk:** run `LIKAcs.exe` → **"Open Control Center"**. No Steam or CS installation is needed here.
+3. **Every gaming PC:** copy the *same* `LIKAcs.exe`, run it → **"Start Station Agent"**. It minimizes to the tray.
 4. On each gaming PC click **1-Click Station Setup**. Then click **Firewall Rules (UAC)** once and accept the Windows UAC prompt (or use the laptop's **Station PCs** tab to do all of them). Optionally enable **Auto-start ON** so the agent starts silently with Windows.
 5. In the Control Center, wait a few seconds — PCs appear automatically in **Station PCs** with their current DHCP IPs. Rename them to `PC 1`, `PC 2`, ... if you like.
 6. In **Rooms & Matches**, create a room, choose game / preset / map / Host PC, tick the PCs in the checklist, click **Apply PC assignment**, then **Start Room**.
 7. On each assigned PC: press <code>`</code> → type `lika` → Enter, **or just press `F10`**. Alternatively tick the PCs on the laptop and click **Start & Connect Selected PCs**.
 
-> Want the Control Panel on a gaming PC instead of a laptop? Just run `LIKAcs-ControlCenter.exe` there too — both roles can run on the same machine.
+> Want the Control Panel on a gaming PC instead of a laptop? Just run `LIKAcs.exe` there too and pick **Open Control Center** — both roles can run on the same machine.
 
 ---
 
@@ -216,7 +216,7 @@ For CS 1.6 there is also an optional fallback using the official `hl.exe -game c
 
 ## Updates: GitHub → laptop → all cafe PCs
 
-1. Tag a release (`v1.0.1`) — [`.github/workflows/release.yml`](.github/workflows/release.yml) builds all three `.exe`s and attaches `SHA256SUMS.txt`.
+1. Tag a release (`v1.0.1`) — [`.github/workflows/release.yml`](.github/workflows/release.yml) builds the `.exe`s, verifies the Windows GUI modules import, and publishes `LIKAcs.exe` + `SHA256SUMS.txt`.
 2. In the laptop's **Updates** tab click **Check for Updates** (GitHub Releases API), then **Download & Verify .exe** (SHA-256 checked against the release digest / `SHA256SUMS.txt`).
 3. Click **Push Update to ALL Station PCs**. The binary is streamed in signed 512 KiB chunks to every discovered agent; each agent re-verifies the hash and size before staging.
 4. Windows cannot overwrite a running `.exe`, so the agent writes a small `.cmd` helper that waits for the process to exit, swaps the file and restarts the agent silently (tick **Restart Station Agents after push**). Games keep running; nothing is interrupted mid-match.
@@ -227,13 +227,13 @@ See [`docs/UPDATE_FLOW.md`](docs/UPDATE_FLOW.md).
 
 ## Standalone .exe and GitHub Actions
 
-Release assets (Windows 10 / 11, 64-bit, no Python/Node needed):
+**GitHub Releases publish only `LIKAcs.exe`** — one file for everything. Windows 10/11, 64-bit, no Python/Node needed, no installer wizard.
 
 | File | Purpose |
 |---|---|
-| `LIKAcs.exe` | Unified build — first-run chooser, or `--mode=control` / `--mode=station` via shortcut |
-| `LIKAcs-ControlCenter.exe` | Directly opens the laptop dashboard |
-| `LIKAcs-StationAgent.exe` | Directly starts the tray agent (also used for auto-start) |
+| `LIKAcs.exe` | **The one you download.** Unified build — first-run chooser, or `--mode=control` / `--mode=station` via shortcut |
+| `LIKAcs-ControlCenter.exe` | Optional one-click shortcut (= `LIKAcs.exe --mode=control`), available in the workflow build artifact |
+| `LIKAcs-StationAgent.exe` | Optional one-click shortcut (= `LIKAcs.exe --mode=station`), available in the workflow build artifact |
 | `SHA256SUMS.txt` | Verified by the in-app updater |
 
 Useful switches: `--silent` (tray only), `--mode=setup` (headless first-time setup), `--self-test` (headless protocol/safety smoke test), `--version`.

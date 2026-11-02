@@ -4,6 +4,27 @@ All notable changes to LIKAcs are documented here. Releases are built by
 [`.github/workflows/release.yml`](.github/workflows/release.yml) and published at
 <https://github.com/azyoff/LIKAcs/releases>. Website: <http://likaapps.com>.
 
+## v1.0.1 - 2026-11-02
+
+Hotfix for the first published Windows build (`v1`). **`v1` exes are broken — use v1.0.1.**
+
+- **Fixed:** `AttributeError: module 'ctypes.wintypes' has no attribute 'HCURSOR'`
+  crashed all three Windows `.exe`s at startup, when `likacs.tray` was imported.
+  `ctypes.wintypes` does not define `HCURSOR`; it is just a `HANDLE` typedef.
+  `tray.py` now resolves it with `getattr(wintypes, "HCURSOR", wintypes.HANDLE)`.
+- **Fixed:** a failed `CreateWindowExW` left a falsy-but-not-`None` window handle,
+  which could make later tray calls operate on a null HWND.
+- **Fixed:** `root.option_add("*Font", FONT)` passed a Python tuple that Tcl
+  flattened into an extra option-priority argument; now a proper Tcl font string.
+- **CI hardening:** explicit Windows steps now import `likacs.tray` and every
+  `likacs.ui` module, and `--self-test` includes a GUI-import check. Previously
+  only headless checks ran, so this Windows-only import crash passed CI.
+- **Regression test:** `tests/test_tray.py` reloads `likacs.tray` with a simulated
+  Windows `ctypes.windll` so the same class of bug is caught on Linux too.
+- **Release clarity:** GitHub Releases now publish **`LIKAcs.exe` only** (one file
+  for everything), with a clear install note. The two optional shortcut exes are
+  still built and uploaded as workflow artifacts. `v1` is superseded.
+
 ## v1.0.0 - 2026-11-02
 
 First production release.

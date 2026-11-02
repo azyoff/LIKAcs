@@ -139,6 +139,33 @@ def run() -> int:
 
         check("RCON packet codec + 127-char tray tooltip", rcon_test)
 
+        def gui_import_test() -> None:
+            """Import the Windows GUI modules, including the ctypes tray block.
+
+            On Windows (and inside the built .exe) importing `likacs.tray`
+            executes the ctypes.windll/wintypes definitions at module scope.
+            A missing wintypes name such as HCURSOR used to crash every GUI
+            build before a window could open; a headless --self-test never
+            imported these modules, so CI stayed green. This check closes
+            that gap. Headless Linux runners without Tkinter skip it, but the
+            Windows CI jobs additionally import the GUI modules explicitly.
+            """
+            import importlib
+            try:
+                importlib.import_module("likacs.tray")
+                for name in (
+                    "likacs.ui.theme", "likacs.ui.widgets", "likacs.ui.about",
+                    "likacs.ui.mode_chooser", "likacs.ui.control_center",
+                    "likacs.ui.station_agent",
+                ):
+                    importlib.import_module(name)
+            except ModuleNotFoundError as exc:
+                if exc.name == "_tkinter" or (exc.name or "").startswith("tkinter"):
+                    return  # no Tk installed on this headless runner
+                raise
+
+        check("Windows GUI modules import (tray/ctypes/Tk)", gui_import_test)
+
     width = max(len(name) for name, _, _ in results) + 2
     print(f"LIKAcs v{VERSION} - headless self-test ({WEBSITE})")
     for name, ok, detail in results:
