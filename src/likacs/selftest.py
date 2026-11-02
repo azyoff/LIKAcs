@@ -166,6 +166,26 @@ def run() -> int:
 
         check("Windows GUI modules import (tray/ctypes/Tk)", gui_import_test)
 
+        def gui_render_test() -> None:
+            """Actually CREATE every window, not just import the modules.
+
+            v1.0.1 passed the import check but crashed on the first
+            ``ttk.Label`` because of an unbraced option-database font.
+            Tk parses those strings only at widget creation time, so a real
+            render is the only reliable guard. Skipped on headless Linux
+            runners where tkinter is absent (the static tests in
+            tests/test_theme.py cover those).
+            """
+            import importlib
+            try:
+                importlib.import_module("tkinter")
+            except ModuleNotFoundError:
+                return
+            from .ui.smoke import run_gui_smoke
+            assert run_gui_smoke() == 0, "Tk widget construction failed"
+
+        check("Real Tk window construction (all 4 windows)", gui_render_test)
+
     width = max(len(name) for name, _, _ in results) + 2
     print(f"LIKAcs v{VERSION} - headless self-test ({WEBSITE})")
     for name, ok, detail in results:

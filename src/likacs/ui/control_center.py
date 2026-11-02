@@ -24,9 +24,15 @@ from .widgets import (LinkLabel, LogPanel, StationChecklist, labeled_entry,
 class ControlCenterApp:
     """The laptop dashboard: rooms, PCs, rules, updates, settings, tray."""
 
-    def __init__(self, control: ControlCenter | None = None, start_hidden: bool = False) -> None:
+    def __init__(self, control: ControlCenter | None = None, start_hidden: bool = False,
+                 *, root: tk.Tk | None = None, smoke: bool = False) -> None:
+        """Build the dashboard.
+
+        ``smoke=True`` is used by the GUI smoke test: it constructs every
+        widget but skips network services, the tray icon and ``mainloop``.
+        """
         self.control = control or ControlCenter()
-        self.root = tk.Tk()
+        self.root = root or tk.Tk()
         self.root.title(f"LIKAcs v{VERSION} - Control Center  |  {WEBSITE_LABEL}")
         self.root.geometry("1320x860")
         self.root.minsize(1120, 720)
@@ -44,6 +50,9 @@ class ControlCenterApp:
 
         self._build_layout()
         self._bind_logging()
+        if smoke:
+            self.root.update_idletasks()
+            return
 
         self.tray = create_tray(
             get_tooltip=self.control.tray_tooltip,

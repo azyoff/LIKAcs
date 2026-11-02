@@ -20,9 +20,15 @@ from .widgets import LinkLabel, LogPanel
 
 
 class StationAgentApp:
-    def __init__(self, agent: StationAgent | None = None, start_hidden: bool = False) -> None:
+    def __init__(self, agent: StationAgent | None = None, start_hidden: bool = False,
+                 *, root: tk.Tk | None = None, smoke: bool = False) -> None:
+        """Build the agent window.
+
+        ``smoke=True`` constructs every widget but skips the API server,
+        discovery, tray icon and ``mainloop`` (used by the GUI smoke test).
+        """
         self.agent = agent or StationAgent()
-        self.root = tk.Tk()
+        self.root = root or tk.Tk()
         self.root.title(f"LIKAcs v{VERSION} - Station Agent  |  {self.agent.label}")
         self.root.geometry("780x600")
         self.root.minsize(700, 520)
@@ -32,6 +38,9 @@ class StationAgentApp:
         self.status_vars = {key: tk.StringVar(value="...") for key in
                             ("label", "ip", "port", "assignment", "installs", "servers", "version", "autostart")}
         self._build_layout()
+        if smoke:
+            self.root.update_idletasks()
+            return
 
         self.tray = create_tray(
             get_tooltip=self._tooltip,

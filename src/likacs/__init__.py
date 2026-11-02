@@ -16,7 +16,7 @@ APP_NAME = "LIKAcs"
 PRODUCT_NAME = "LIKAcs - LAN Server & Match Management Suite"
 WEBSITE = "http://likaapps.com"
 WEBSITE_LABEL = "likaapps.com"
-VERSION = "1.0.1"
+VERSION = "1.0.2"
 BUILD_CHANNEL = "stable"
 
 GITHUB_OWNER = "azyoff"

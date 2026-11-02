@@ -34,9 +34,13 @@ def apply_theme(root: tk.Tk) -> ttk.Style:
     except tk.TclError:
         pass
     root.configure(background=COLORS["bg"])
-    # option_add needs a single Tcl font string; a Python tuple would be
-    # flattened into extra arguments and silently become an option priority.
-    root.option_add("*Font", "Segoe UI 10")
+    # IMPORTANT: never put a font in Tk's option database here.
+    # `option add *Font "Segoe UI 10"` stores an UNBRACED string; when the
+    # first widget is created Tk parses it as family="Segoe", size="UI" and
+    # raises: TclError: expected integer but got "UI". That broke v1.0.1.
+    # Fonts are set safely below through ttk styles (tuples are converted by
+    # tkinter into braced Tcl lists, e.g. "{Segoe UI} 10") and through the
+    # explicit `font=(...)` tuples on each widget.
     root.option_add("*Background", COLORS["panel"])
 
     style.configure(".", background=COLORS["bg"], foreground=COLORS["fg"],

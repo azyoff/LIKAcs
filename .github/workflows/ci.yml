@@ -52,13 +52,21 @@ jobs:
       - name: Unit tests
         run: python -m unittest discover -s tests -v
       - name: Verify Windows GUI imports (ctypes / wintypes / Tkinter)
-        run: python -c "import likacs.tray; from likacs.ui import theme, widgets, about, mode_chooser, control_center, station_agent; print('Windows GUI imports OK')"
+        run: python -c "import likacs.tray; from likacs.ui import theme, widgets, about, mode_chooser, control_center, station_agent, smoke; print('Windows GUI imports OK')"
+      - name: Render every GUI window against a real Tk root
+        run: python scripts/smoke_gui.py
       - name: Headless self-test
         run: python -m likacs --self-test
       - name: Build unified LIKAcs.exe
         run: python scripts/build.py --quick
       - name: Run self-test inside the built .exe
-        run: .\dist\LIKAcs.exe --self-test
+        run: |
+          $p = Start-Process -FilePath ".\dist\LIKAcs.exe" -ArgumentList "--self-test" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "self-test failed with exit code $($p.ExitCode)" }
+      - name: Render every GUI window inside the built .exe
+        run: |
+          $p = Start-Process -FilePath ".\dist\LIKAcs.exe" -ArgumentList "--smoke-gui" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "GUI smoke failed with exit code $($p.ExitCode)" }
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
         with:

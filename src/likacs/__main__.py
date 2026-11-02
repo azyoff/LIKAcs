@@ -6,6 +6,7 @@ Usage:
     LIKAcs.exe --mode=station --silent   Tray-only auto-start with Windows
     LIKAcs.exe --mode=setup               Headless 1-click station setup
     LIKAcs.exe --self-test               Headless safety/protocol smoke test
+    LIKAcs.exe --smoke-gui              Construct every window against real Tk
     LIKAcs.exe --version
     LIKAcs.exe                          Friendly first-run mode chooser
 """
@@ -34,6 +35,8 @@ def build_parser() -> argparse.ArgumentParser:
                         help="start hidden in the Windows system tray")
     parser.add_argument("--self-test", action="store_true",
                         help="run headless protocol/safety smoke tests and exit")
+    parser.add_argument("--smoke-gui", action="store_true",
+                        help="construct every window against a real Tk root and exit")
     parser.add_argument("--version", action="store_true", help="print version and exit")
     parser.add_argument("--elevated-firewall", action="store_true",
                         help=argparse.SUPPRESS)  # internal UAC helper
@@ -108,6 +111,9 @@ def main(argv: list[str] | None = None) -> int:
     if args.self_test:
         from .selftest import run
         return run()
+    if args.smoke_gui:
+        from .ui.smoke import run_gui_smoke
+        return run_gui_smoke()
     if args.elevated_firewall:
         return elevated_firewall()
     if args.mode == "setup":
