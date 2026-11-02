@@ -46,8 +46,15 @@ class GameLaunchTests(unittest.TestCase):
         self.assertEqual(argv[-2:], ["+connect", "192.168.1.5:27016"])
 
     def test_pid_alive_does_not_signal_the_process(self) -> None:
-        # Regression: os.kill(pid, 0) KILLS the process on Windows.
-        with mock.patch.object(games, "IS_WINDOWS", False):
+        # Regression: os.kill(pid, 0) KILLS the process on Windows. Simulate
+        # POSIX semantics rather than calling the real os.kill on a Windows
+        # runner (which would terminate the test process itself).
+        def fake_kill(pid: int, sig: int) -> None:
+            if pid != os.getpid():
+                raise OSError("no such process")
+
+        with mock.patch.object(games, "IS_WINDOWS", False), \
+             mock.patch.object(games.os, "kill", fake_kill):
             self.assertTrue(pid_alive(os.getpid(), fresh=True))
             self.assertFalse(pid_alive(999_999_999, fresh=True))
         self.assertTrue(os.getpid() > 0)  # this test process is still alive

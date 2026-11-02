@@ -10,6 +10,7 @@ from pathlib import Path
 from unittest import mock
 
 from likacs import VERSION, WEBSITE
+from likacs import installer as installer_module
 from likacs.installer import (APP_EXE, INSTALL_MANIFEST, InstallPlan, install,
                               launch_app, registry_values, shortcut_paths,
                               smoke_install, uninstall)
@@ -52,14 +53,20 @@ class InstallerTests(unittest.TestCase):
     def test_uninstall_removes_the_folder_and_reports_success(self) -> None:
         plan = self.plan()
         self.assertTrue(install(plan)["ok"])
-        removed = uninstall(plan.install_dir)
+        # Use the synchronous cleanup path so the test never spawns a delayed
+        # .cmd helper on a Windows CI runner. The delayed path is exercised by
+        # --smoke-install inside the real Setup exe in the release workflow.
+        with mock.patch.object(installer_module, "IS_WINDOWS", False):
+            removed = uninstall(plan.install_dir)
         self.assertTrue(removed["ok"], removed)
-        # On Linux the cleanup is synchronous; on Windows a delayed .cmd runs.
-        if os.name != "nt":
-            self.assertFalse(plan.install_dir.exists())
+        self.assertFalse(plan.install_dir.exists())
 
     def test_smoke_install_end_to_end(self) -> None:
-        self.assertEqual(smoke_install(), 0)
+        # On Windows smoke_install() also launches the payload as a real .exe.
+        # Here the "payload" is a tiny test fixture, so exercise the portable
+        # (non-Windows) path; the real built exe is tested by CI separately.
+        with mock.patch.object(installer_module, "IS_WINDOWS", False):
+            self.assertEqual(smoke_install(), 0)
 
     def test_registry_values_point_at_a_real_uninstall_command(self) -> None:
         exe = Path("C:/Users/Cafe/AppData/Local/LIKAcs/LIKAcs.exe")
