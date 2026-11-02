@@ -216,7 +216,7 @@ For CS 1.6 there is also an optional fallback using the official `hl.exe -game c
 
 ## Updates: GitHub → laptop → all cafe PCs
 
-1. Tag a release (`v1.0.1`) — [`.github/workflows/release.yml`](.github/workflows/release.yml) builds the `.exe`s, verifies the Windows GUI modules import, and publishes `LIKAcs.exe` + `SHA256SUMS.txt`.
+1. Tag a release (`v1.0.2`) — [`.github/workflows/release.yml`](.github/workflows/release.yml) builds the `.exe`s, renders all four windows against a real Tk root (from source **and** inside the built `.exe`), and publishes `LIKAcs.exe` + `SHA256SUMS.txt`.
 2. In the laptop's **Updates** tab click **Check for Updates** (GitHub Releases API), then **Download & Verify .exe** (SHA-256 checked against the release digest / `SHA256SUMS.txt`).
 3. Click **Push Update to ALL Station PCs**. The binary is streamed in signed 512 KiB chunks to every discovered agent; each agent re-verifies the hash and size before staging.
 4. Windows cannot overwrite a running `.exe`, so the agent writes a small `.cmd` helper that waits for the process to exit, swaps the file and restarts the agent silently (tick **Restart Station Agents after push**). Games keep running; nothing is interrupted mid-match.
@@ -236,7 +236,9 @@ See [`docs/UPDATE_FLOW.md`](docs/UPDATE_FLOW.md).
 | `LIKAcs-StationAgent.exe` | Optional one-click shortcut (= `LIKAcs.exe --mode=station`), available in the workflow build artifact |
 | `SHA256SUMS.txt` | Verified by the in-app updater |
 
-Useful switches: `--silent` (tray only), `--mode=setup` (headless first-time setup), `--self-test` (headless protocol/safety smoke test), `--version`.
+Useful switches: `--silent` (tray only), `--mode=setup` (headless first-time setup), `--self-test` (headless protocol/safety smoke test), `--smoke-gui` (construct every window against real Tk, then exit), `--version`.
+
+> Older tags **`v1`** and **`v1.0.1`** contain broken Windows builds. Use the latest release.
 
 To build locally on Windows:
 

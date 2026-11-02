@@ -4,6 +4,34 @@ All notable changes to LIKAcs are documented here. Releases are built by
 [`.github/workflows/release.yml`](.github/workflows/release.yml) and published at
 <https://github.com/azyoff/LIKAcs/releases>. Website: <http://likaapps.com>.
 
+## v1.0.2 - 2026-11-02
+
+**This is the first working Windows build. `v1` and `v1.0.1` are broken — do not use them.**
+
+- **Fixed:** `TclError: expected integer but got "UI"` crashed every `.exe` on
+  the first `ttk.Label` in the mode chooser. `apply_theme()` stored
+  `option add *Font "Segoe UI 10"` in Tk's option database; with an unbraced
+  family name Tk parsed `Segoe` as the family and `UI` as the (integer) size.
+  The `*Font` option entry is removed — fonts come from ttk styles and
+  `font=(...)` tuples, which tkinter converts into properly braced Tcl lists
+  such as `{Segoe UI} 10`.
+- **Root cause of repeated broken releases:** CI only *imported* GUI modules.
+  Tk parses option-database strings and font specs only when a widget is
+  actually created, so import checks can never catch this class of bug.
+- **New: real GUI render guard.** `src/likacs/ui/smoke.py` +
+  `--smoke-gui` + `scripts/smoke_gui.py` construct the mode chooser, About
+  dialog, full Control Center (all six notebook tabs) and full Station Agent
+  against a hidden Tk root, force `update_idletasks()` and tear everything
+  down. Both app classes accept `smoke=True` to skip services / tray /
+  `mainloop`. CI runs this on `windows-latest` from source **and inside the
+  built `--windowed` exe**; `--self-test` runs it too when Tk is present.
+  Failures are caught and returned as an exit code so a headless runner can
+  never hang on a PyInstaller modal error dialog.
+- **New: static regression tests** (`tests/test_theme.py`) that run on Linux
+  without tkinter: no `*Font` option entry, no unbraced `option_add` values,
+  no string font literals with spaces, and all `FONT_*` constants are tuples.
+- Bumped version to `1.0.2`; release notes warn about the two broken tags.
+
 ## v1.0.1 - 2026-11-02
 
 Hotfix for the first published Windows build (`v1`). **`v1` exes are broken — use v1.0.1.**

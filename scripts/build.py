@@ -37,6 +37,7 @@ HIDDEN_IMPORTS = [
     "likacs.ui.about",
     "likacs.ui.control_center",
     "likacs.ui.mode_chooser",
+    "likacs.ui.smoke",
     "likacs.ui.station_agent",
     "likacs.ui.theme",
     "likacs.ui.widgets",

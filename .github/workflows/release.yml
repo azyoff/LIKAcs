@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release tag (e.g. v1.0.1)'
+        description: 'Release tag (e.g. v1.0.2)'
         required: true
-        default: 'v1.0.1'
+        default: 'v1.0.2'
 
 permissions:
   contents: write
@@ -48,13 +48,30 @@ jobs:
       # previously crashed every GUI .exe at startup while headless checks
       # stayed green. This step fails the release before any .exe is published.
       - name: Verify Windows GUI imports (ctypes / wintypes / Tkinter)
-        run: python -c "import likacs.tray; from likacs.ui import theme, widgets, about, mode_chooser, control_center, station_agent; print('Windows GUI imports OK')"
+        run: python -c "import likacs.tray; from likacs.ui import theme, widgets, about, mode_chooser, control_center, station_agent, smoke; print('Windows GUI imports OK')"
+
+      # Import checks alone are not enough: Tk parses option-database font
+      # strings only when a widget is created. v1.0.1 passed every import
+      # check and still crashed on the first ttk.Label. Build all four real
+      # windows here, and again inside the frozen .exe below.
+      - name: Render every GUI window against a real Tk root
+        run: python scripts/smoke_gui.py
 
       - name: Build standalone Windows executables
         run: python scripts/build.py
 
+      # --windowed exes have no console. Start-Process -Wait -PassThru plus an
+      # explicit ExitCode check guarantees the check really ran; a bare
+      # ".\dist\LIKAcs.exe ..." can return immediately for a GUI subsystem app.
       - name: Verify the built unified .exe
-        run: .\dist\LIKAcs.exe --self-test
+        run: |
+          $p = Start-Process -FilePath ".\dist\LIKAcs.exe" -ArgumentList "--self-test" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "self-test failed with exit code $($p.ExitCode)" }
+
+      - name: Render every GUI window inside the built .exe
+        run: |
+          $p = Start-Process -FilePath ".\dist\LIKAcs.exe" -ArgumentList "--smoke-gui" -Wait -PassThru
+          if ($p.ExitCode -ne 0) { throw "GUI smoke failed with exit code $($p.ExitCode)" }
 
       - name: Upload build artifact
         uses: actions/upload-artifact@v4
@@ -83,9 +100,10 @@ jobs:
             one-click shortcuts are still built and available in the workflow
             artifact, but are not attached here to keep it simple.
 
-            > ⚠️ The **`v1`** exes are broken (Windows tray `wintypes.HCURSOR`
-            > import crash). Use this release instead. Fix verified by a
-            > Windows GUI-import CI check before publishing.
+            > ⚠️ **`v1`** (tray `wintypes.HCURSOR` import crash) and
+            > **`v1.0.1`** (unbraced `Segoe UI 10` font) are broken — do not
+            > download them. This build is verified by a real Tk render of all
+            > four windows, both from source and inside the built .exe.
           generate_release_notes: true
           make_latest: true
           draft: false
