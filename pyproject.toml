@@ -1,0 +1,38 @@
+[build-system]
+requires = ["setuptools>=68"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "likacs"
+version = "1.0.0"
+description = "Free, open-source, VAC-safe LAN Server & Match Management Suite for CS2 and CS 1.6 internet cafes"
+readme = "README.md"
+requires-python = ">=3.10"
+license = { text = "MIT" }
+authors = [{ name = "azyoff / LIKAcs" }]
+keywords = ["counter-strike", "cs2", "cs16", "lan", "cafe", "match-management", "rcon"]
+classifiers = [
+  "Development Status :: 5 - Production/Stable",
+  "Environment :: Win32 (MS Windows)",
+  "Intended Audience :: System Administrators",
+  "License :: OSI Approved :: MIT License",
+  "Operating System :: Microsoft :: Windows :: Windows 10",
+  "Operating System :: Microsoft :: Windows :: Windows 11",
+  "Programming Language :: Python :: 3.11",
+  "Topic :: Games/Entertainment",
+]
+
+[project.urls]
+Homepage = "http://likaapps.com"
+Source = "https://github.com/azyoff/LIKAcs"
+Releases = "https://github.com/azyoff/LIKAcs/releases"
+Issues = "https://github.com/azyoff/LIKAcs/issues"
+
+[project.scripts]
+likacs = "likacs.__main__:main"
+
+[tool.setuptools]
+package-dir = { "" = "src" }
+
+[tool.setuptools.packages.find]
+where = ["src"]

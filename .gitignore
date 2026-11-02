@@ -1,0 +1,36 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.mypy_cache/
+.pytest_cache/
+.ruff_cache/
+
+# PyInstaller build output (release artifacts are on GitHub Releases)
+build/
+dist/
+*.spec
+
+# Local cafe state / secrets / backups
+settings.json
+rooms.json
+station.json
+station-labels.json
+pending-update.json
+setup-report.json
+firewall-report.json
+*.likacs-backup-*
+*.exe.new
+
+# OS / editors
+Thumbs.db
+desktop.ini
+.DS_Store
+.vscode/
+.idea/
+*.swp
+
+# Keep the generated icon in git (builds use it and users may want it)
+!assets/lika.ico
