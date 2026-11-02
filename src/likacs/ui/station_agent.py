@@ -35,6 +35,7 @@ class StationAgentApp:
         self.root.minsize(700, 520)
         apply_theme(self.root)
         self._closing = False
+        self.smoke = smoke
 
         self.status_vars = {key: tk.StringVar(value="...") for key in
                             ("label", "ip", "port", "assignment", "installs", "servers", "version", "autostart")}
@@ -99,7 +100,7 @@ class StationAgentApp:
 
         from .update_panel import UpdateBar
         self.update_bar = UpdateBar(self.root, on_restart=self.quit_for_update,
-                                    log=self._log, auto_check=not smoke)
+                                    log=self._log, auto_check=not self.smoke)
         self.update_bar.pack(fill="x", padx=12, pady=(8, 0))
 
         info = ttk.LabelFrame(self.root, text=" This gaming PC ", style="Card.TLabelframe")
