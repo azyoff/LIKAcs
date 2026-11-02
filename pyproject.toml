@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "likacs"
-version = "1.0.2"
+version = "1.1.0"
 description = "Free, open-source, VAC-safe LAN Server & Match Management Suite for CS2 and CS 1.6 internet cafes"
 readme = "README.md"
 requires-python = ">=3.10"

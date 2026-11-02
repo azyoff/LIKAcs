@@ -1,7 +1,10 @@
+import os
 import unittest
+from unittest import mock
 
 from likacs.agent import redact
-from likacs.games import build_client_argv, build_server_argv
+from likacs import games
+from likacs.games import build_client_argv, build_server_argv, graceful_close_process, pid_alive
 
 
 class GameLaunchTests(unittest.TestCase):
@@ -41,6 +44,42 @@ class GameLaunchTests(unittest.TestCase):
     def test_client_launch_uses_official_connect_parameter(self) -> None:
         argv = build_client_argv({"client_exe": "C:/HL/hl.exe"}, "cs16", "192.168.1.5", 27016)
         self.assertEqual(argv[-2:], ["+connect", "192.168.1.5:27016"])
+
+    def test_pid_alive_does_not_signal_the_process(self) -> None:
+        # Regression: os.kill(pid, 0) KILLS the process on Windows. Simulate
+        # POSIX semantics rather than calling the real os.kill on a Windows
+        # runner (which would terminate the test process itself).
+        def fake_kill(pid: int, sig: int) -> None:
+            if pid != os.getpid():
+                raise OSError("no such process")
+
+        with mock.patch.object(games, "IS_WINDOWS", False), \
+             mock.patch.object(games.os, "kill", fake_kill):
+            self.assertTrue(pid_alive(os.getpid(), fresh=True))
+            self.assertFalse(pid_alive(999_999_999, fresh=True))
+        self.assertTrue(os.getpid() > 0)  # this test process is still alive
+
+    def test_windows_pid_check_uses_tasklist_not_os_kill(self) -> None:
+        class Result:
+            def __init__(self, stdout: str) -> None:
+                self.stdout = stdout
+
+        calls: list[list[str]] = []
+
+        def fake_run(argv: list[str], **_: object) -> Result:
+            calls.append(argv)
+            return Result('"cs2.exe","4242","Console","1","1,000 K"')
+
+        with mock.patch.object(games, "IS_WINDOWS", True), \
+             mock.patch.object(games.subprocess, "run", fake_run):
+            self.assertTrue(pid_alive(4242, fresh=True))
+            self.assertIn("tasklist", calls[0][0])
+            self.assertIn("PID eq 4242", calls[0])
+
+    def test_graceful_close_returns_quickly_for_dead_pid(self) -> None:
+        with mock.patch.object(games, "_windows_close_windows", lambda _pid: True), \
+             mock.patch.object(games, "pid_alive", lambda _pid, fresh=False: False):
+            self.assertTrue(graceful_close_process(999_999_999))
 
     def test_rcon_password_is_redacted(self) -> None:
         argv = ["cs2.exe", "+rcon_password", "supersecret", "+map", "de_dust2"]

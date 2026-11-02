@@ -184,7 +184,7 @@ def run() -> int:
             from .ui.smoke import run_gui_smoke
             assert run_gui_smoke() == 0, "Tk widget construction failed"
 
-        check("Real Tk window construction (all 4 windows)", gui_render_test)
+        check("Real Tk window construction (all 5 windows)", gui_render_test)
 
     width = max(len(name) for name, _, _ in results) + 2
     print(f"LIKAcs v{VERSION} - headless self-test ({WEBSITE})")

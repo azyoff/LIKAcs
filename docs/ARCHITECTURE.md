@@ -8,7 +8,7 @@ Website: <http://likaapps.com>
 |---|---|---|
 | `LIKAcs-ControlCenter.exe` | Owner's laptop (few MB, no Steam) | Tkinter dashboard, room state, discovery listener, orchestration, updates, tray |
 | `LIKAcs-StationAgent.exe` | Every gaming PC (few MB) | Heartbeats, signed HTTP API, cfg writer, official game launcher/RCON bridge, setup, tray, staged updates |
-| `LIKAcs.exe` | Anywhere | Unified build; `--mode=control|station`, or a first-run chooser |
+| `LIKAcs.exe` | Anywhere | **The only published exe.** First run: Setup wizard installs it per-user. Later runs: `--mode=control|station` or the chooser; one-click self-update via GitHub |
 | `cs2.exe` / `hl.exe` / `hlds.exe` | Host gaming PC(s) | **Already installed** Steam game; acts as official LAN listen/dedicated server |
 
 Both Control Center and Station Agent can run on the same PC. The laptop never
@@ -34,11 +34,15 @@ games.py           official launch argv, process registry, graceful shutdown
 rcon.py            Source RCON (TCP) + GoldSrc RCON (UDP challenge) + status parser
 steam.py           steam://connect/ and steam://rungameid/ helpers
 setup_windows.py   one-click setup, netsh firewall, HKCU auto-start, UAC
+installer.py       per-user Setup wizard engine, shortcuts, HKCU uninstall, manifest
+runtime.py         DPI awareness, single-instance mutex, friendly logged errors
 update.py          GitHub Releases check, verified download, LAN push, staged swap
+selfupdate.py      latest.json manifest, verified one-click self-update, rollback swap
 tray.py            Shell_NotifyIconW with ctypes (+ non-Windows NullTray)
 agent.py           StationAgent service and API dispatch
 control.py         ControlCenter orchestration and live controls
-ui/                Tkinter theme, widgets, About, mode chooser, both apps
+ui/                Tkinter theme, widgets, About, mode chooser, Setup wizard,
+                   one-click update panel, both apps, GUI render smoke test
 icon.py            generates a valid 32x32 .ico in memory (no Pillow)
 selftest.py        headless protocol/safety smoke test
 ```
@@ -64,9 +68,11 @@ selftest.py        headless protocol/safety smoke test
    output is parsed to kick players by LAN IP.
 5. **Connect** — `POST /steam-connect` makes each selected agent open the
    official `steam://connect/<host>:<port>` URL locally.
-6. **Updates** — GitHub Release → laptop download + SHA-256 verify → signed
-   `/update-begin`, `/update-chunk`, `/update-finish` per station → staged
-   `.exe.new` + Windows `.cmd` swap helper → silent agent restart.
+6. **Updates** — one click: `latest.json` from GitHub Releases → SHA-256
+   verify against manifest + `SHA256SUMS.txt` → boot-checked `.cmd` swap with
+   automatic rollback → relaunch. Optionally the same verified exe is streamed
+   to stations over the signed LAN (`/update-begin`, `/update-chunk`,
+   `/update-finish`) and staged there with a `.cmd` helper.
 
 ## State files (`%APPDATA%\LIKAcs\` on Windows)
 

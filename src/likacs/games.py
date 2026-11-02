@@ -35,11 +35,46 @@ class LaunchedProcess:
         return {**asdict(self), "alive": self.alive()}
 
     def alive(self) -> bool:
+        return pid_alive(self.pid)
+
+
+_ALIVE_CACHE: dict[int, tuple[float, bool]] = {}
+_ALIVE_TTL = 0.75
+
+
+def _pid_alive_uncached(pid: int) -> bool:
+    if IS_WINDOWS:
+        # os.kill(pid, 0) TERMINATES a process on Windows: CPython maps any
+        # signal other than CTRL_C/BREAK_EVENT to TerminateProcess(handle,sig).
+        # Never use it here. tasklist is read-only ordinary OS process control.
         try:
-            os.kill(self.pid, 0)
-            return True
-        except OSError:
+            proc = subprocess.run(
+                ["tasklist", "/FI", f"PID eq {pid}", "/NH", "/FO", "CSV"],
+                capture_output=True, text=True, errors="ignore", timeout=6,
+                creationflags=CREATE_NO_WINDOW)
+            return f'"{pid}"' in (proc.stdout or "")
+        except (OSError, subprocess.SubprocessError):
             return False
+    try:
+        os.kill(pid, 0)
+        return True
+    except OSError:
+        return False
+
+
+def pid_alive(pid: int, fresh: bool = False) -> bool:
+    """Is this process still running, without ever signalling it?"""
+    if pid <= 0:
+        return False
+    now = time.monotonic()
+    cached = _ALIVE_CACHE.get(pid)
+    if not fresh and cached and now - cached[0] < _ALIVE_TTL:
+        return cached[1]
+    result = _pid_alive_uncached(pid)
+    if len(_ALIVE_CACHE) > 256:
+        _ALIVE_CACHE.clear()
+    _ALIVE_CACHE[pid] = (now, result)
+    return result
 
 
 class ProcessRegistry:
@@ -168,9 +203,7 @@ def graceful_close_process(pid: int, grace: float = 4.0) -> bool:
     _windows_close_windows(pid)
     deadline = time.monotonic() + grace
     while time.monotonic() < deadline:
-        try:
-            os.kill(pid, 0)
-        except OSError:
+        if not pid_alive(pid, fresh=True):
             return True
         time.sleep(0.25)
     try:

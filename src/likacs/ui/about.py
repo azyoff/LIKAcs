@@ -39,7 +39,7 @@ def show_about(parent: tk.Misc, on_check_updates: Callable[[], None] | None = No
     ttk.Button(buttons, text="Open likaapps.com", command=lambda: open_url(WEBSITE)).pack(side="left")
     ttk.Button(buttons, text="View source on GitHub", command=lambda: open_url(GITHUB_URL)).pack(side="left", padx=6)
     if on_check_updates:
-        ttk.Button(buttons, text="Check for Updates",
+        ttk.Button(buttons, text="Update LIKAcs",
                    command=lambda: (on_check_updates(), window.destroy())).pack(side="left", padx=6)
     ttk.Button(buttons, text="Close", command=window.destroy,
                style="Primary.TButton").pack(side="right")
