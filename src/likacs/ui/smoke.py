@@ -34,13 +34,21 @@ def _clear(root: object) -> None:
     root.withdraw()  # type: ignore[attr-defined]
 
 
+def _say(message: str) -> None:
+    """Print without ever raising (--windowed exes may have sys.stdout=None)."""
+    try:
+        print(message)
+    except Exception:
+        pass
+
+
 def run_gui_smoke() -> int:
     """Build every window. Returns 0 on success, 1 on any Tk error."""
     try:
         return _build_all_windows()
     except Exception as exc:  # never let a --windowed exe show a modal dialog
-        print(f"GUI SMOKE FAILED: {type(exc).__name__}: {exc}")
-        traceback.print_exc()
+        _say(f"GUI SMOKE FAILED: {type(exc).__name__}: {exc}")
+        _say(traceback.format_exc())
         return 1
 
 
@@ -55,7 +63,7 @@ def _build_all_windows() -> int:
         # runs on windows-latest (and inside the frozen exe, which bundles Tk).
         # On Windows a missing tkinter is a genuine build failure.
         if sys.platform != "win32":
-            print("GUI SMOKE SKIPPED: tkinter not installed on this non-Windows runner")
+            _say("GUI SMOKE SKIPPED: tkinter not installed on this non-Windows runner")
             return 0
         raise
 
@@ -72,8 +80,12 @@ def _build_all_windows() -> int:
             try:
                 root = tk.Tk()
             except tk.TclError as exc:
-                if "display" in str(exc).lower() or "connect" in str(exc).lower():
-                    print("GUI SMOKE SKIPPED: no Tk display available on this runner")
+                # A headless *nix box may legitimately have no display.
+                # On Windows a Tk root must always be creatable: silently
+                # skipping there would let a broken GUI be published.
+                if sys.platform != "win32" and (
+                        "display" in str(exc).lower() or "connect" in str(exc).lower()):
+                    _say("GUI SMOKE SKIPPED: no Tk display available on this runner")
                     return 0
                 raise
             root.withdraw()
@@ -112,7 +124,7 @@ def _build_all_windows() -> int:
                       lambda: StationAgentApp(agent=StationAgent(), root=root, smoke=True))
                 _clear(root)
 
-                print("GUI SMOKE OK: " + ", ".join(built))
+                _say("GUI SMOKE OK: " + ", ".join(built))
                 return 0
             finally:
                 root.destroy()
