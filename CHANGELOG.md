@@ -4,6 +4,34 @@ All notable changes to LIKAcs are documented here. Releases are built by
 [`.github/workflows/release.yml`](.github/workflows/release.yml) and published at
 <https://github.com/azyoff/LIKAcs/releases>. Website: <http://likaapps.com>.
 
+## v1.2.0 - 2026-11-03
+
+**Professional workspace and a much easier day-to-day workflow.** Still exactly
+one `.exe` on the Releases page, still one-click updates.
+
+- **New: sidebar workspace.** `ui/navigation.py` adds `SidebarBook`, a
+  Notebook-compatible page container with a left navigation rail, live
+  counters, always-visible quick actions, a VAC-safe badge, help link and
+  version. All seven existing pages (plus the new Dashboard) work unchanged.
+- **New: Cafe overview dashboard.** Status pills, four KPI cards, a 5-step
+  Quick start checklist with progress bar, live room cards, a 12-PC station
+  grid and a Recent activity feed. Updated live from the Control Center state
+  on every refresh, so nothing is manually typed or stale.
+- **New: guided onboarding.** The Quick start checklist reports exactly what
+  is missing (install, discover PCs, 1-Click Setup, create a room, start a
+  match) and every item has a button in the same window. "Manage room" and
+  "View all rooms" jump to the full editor.
+- **New: theme styles** for the sidebar, nav rows, pills, KPI/card/room/tile
+  widgets and links. All fonts are tuples through ttk styles (no option
+  database writes), so the v1.0.1 Tk font crash cannot return.
+- **New: static regression tests** (`tests/test_dashboard.py`) that run on
+  headless Linux: every `style=` name used in the UI is actually configured,
+  `SidebarBook` exposes the Notebook API, and the Dashboard is registered as
+  the default first page.
+- **Design preview:** `preview-v1.2.0.png` shows the proposed workspace before
+  implementation (rendered mockup, exact branding text).
+- Bumped version to `1.2.0`; README and release notes document the new layout.
+
 ## v1.1.0 - 2026-11-02
 
 **Professional installation and genuinely one-click updates.** Still exactly

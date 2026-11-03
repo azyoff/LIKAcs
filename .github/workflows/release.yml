@@ -7,9 +7,9 @@ on:
   workflow_dispatch:
     inputs:
       tag:
-        description: 'Release tag (e.g. v1.1.0)'
+        description: 'Release tag (e.g. v1.2.0)'
         required: true
-        default: 'v1.1.0'
+        default: 'v1.2.0'
 
 permissions:
   contents: write
@@ -48,7 +48,7 @@ jobs:
       # previously crashed every GUI .exe at startup while headless checks
       # stayed green.
       - name: Verify Windows GUI imports (ctypes / wintypes / Tkinter)
-        run: python -c "import likacs.tray, likacs.installer, likacs.selfupdate, likacs.runtime; from likacs.ui import theme, widgets, about, mode_chooser, control_center, station_agent, setup_wizard, update_panel, smoke; print('Windows GUI + installer imports OK')"
+        run: python -c "import likacs.tray, likacs.installer, likacs.selfupdate, likacs.runtime; from likacs.ui import theme, widgets, about, mode_chooser, control_center, station_agent, setup_wizard, update_panel, navigation, smoke; print('Windows GUI + installer imports OK')"
 
       # Import checks alone are not enough: Tk parses option-database font
       # strings only when a widget is created. v1.0.1 passed every import
@@ -118,6 +118,14 @@ jobs:
                `SHA256SUMS.txt`, swaps itself safely with automatic rollback,
                and restarts. Nothing else to download — ever.
 
+            ## What's new in this build
+            **A professional workspace that is much easier to run a cafe with.**
+            A left sidebar replaces the old cramped tabs; the app opens on a
+            **Cafe overview** dashboard with status pills, four KPI cards, a
+            5-step **Quick start** checklist, live room cards, a 12-PC station
+            grid and a Recent activity feed. **Update LIKAcs** and **Create a
+            room** are always one click away. Everything refreshes live.
+
             If Windows SmartScreen warns about a new build, click **More info →
             Run anyway**. `SHA256SUMS.txt` is attached for manual verification.
 
@@ -130,8 +138,9 @@ jobs:
             > ⚠️ **`v1`** (tray `wintypes.HCURSOR` import crash) and
             > **`v1.0.1`** (unbraced `Segoe UI 10` font) are broken — do not
             > download them. This build is verified by a real Tk render of all
-            > five windows (from source **and** inside the built .exe), an
-            > end-to-end install/uninstall smoke test, 92 unit tests and the
+            > five windows — including the new sidebar + Dashboard — (from
+            > source **and** inside the built .exe), an
+            > end-to-end install/uninstall smoke test, 99 unit tests and the
             > headless self-test.
           generate_release_notes: true
           make_latest: true

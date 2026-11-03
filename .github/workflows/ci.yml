@@ -52,7 +52,7 @@ jobs:
       - name: Unit tests
         run: python -m unittest discover -s tests -v
       - name: Verify Windows GUI + installer imports (ctypes / wintypes / Tk)
-        run: python -c "import likacs.tray, likacs.installer, likacs.selfupdate, likacs.runtime; from likacs.ui import theme, widgets, about, mode_chooser, control_center, station_agent, setup_wizard, update_panel, smoke; print('Windows GUI + installer imports OK')"
+        run: python -c "import likacs.tray, likacs.installer, likacs.selfupdate, likacs.runtime; from likacs.ui import theme, widgets, about, mode_chooser, control_center, station_agent, setup_wizard, update_panel, navigation, smoke; print('Windows GUI + installer imports OK')"
       - name: Render every GUI window against a real Tk root
         run: python scripts/smoke_gui.py
       - name: Headless self-test

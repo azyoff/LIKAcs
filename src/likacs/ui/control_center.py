@@ -5,10 +5,11 @@ from __future__ import annotations
 import os
 import threading
 import tkinter as tk
+from datetime import date
 from tkinter import messagebox, simpledialog, ttk
 from typing import Any, Callable
 
-from .. import VERSION, WEBSITE, WEBSITE_LABEL
+from .. import GITHUB_URL, VERSION, WEBSITE, WEBSITE_LABEL
 from ..branding import FOOTER, HEADER_SUBTITLE, HEADER_TITLE
 from ..control import ControlCenter
 from ..rules import (DEFAULT_RULES, MAPS_CS16, MAPS_CS2, PRESET_ORDER, RULE_HELP,
@@ -17,6 +18,7 @@ from ..setup_windows import apply_firewall_rules, elevate, one_click_setup
 from ..tray import create_tray
 from ..util import open_url, utc_now_iso
 from .about import show_about
+from .navigation import SidebarBook
 from .theme import COLORS, FONT_BOLD, FONT_SMALL, FONT_TITLE, apply_theme
 from .widgets import (LinkLabel, LogPanel, StationChecklist, labeled_entry,
                       status_bar_text)
@@ -88,6 +90,11 @@ class ControlCenterApp:
 
     def _log(self, message: str) -> None:
         self.log_panel.write(message)
+        if not hasattr(self, "_activity"):
+            self._activity = []
+        self._activity.append(message)
+        del self._activity[:-20]
+        self._refresh_activity()
         if "error" in message.lower() or "unreachable" in message.lower():
             self.control.last_error = message
 
@@ -126,23 +133,44 @@ class ControlCenterApp:
 
     # ---------------------------------------------------------------- layout
     def _build_layout(self) -> None:
+        self.pcs_pill = tk.StringVar(value="0 PCs online")
+        self.rooms_pill = tk.StringVar(value="0 rooms live")
+        self.version_pill = tk.StringVar(value=f"v{VERSION}")
+        self._activity: list[str] = []
+
         header = ttk.Frame(self.root, style="Panel.TFrame")
         header.pack(fill="x", padx=0, pady=0)
-        ttk.Label(header, text=f"  {HEADER_TITLE}", font=FONT_TITLE,
-                  foreground=COLORS["accent"], background=COLORS["panel"]).pack(anchor="w", pady=(10, 0), padx=8)
+        title_row = ttk.Frame(header, style="Panel.TFrame")
+        title_row.pack(fill="x")
+        ttk.Label(title_row, text=f"  {HEADER_TITLE}", font=FONT_TITLE,
+                  foreground=COLORS["accent"], background=COLORS["panel"]).pack(
+                      side="left", pady=(10, 0), padx=8)
+        LinkLabel(title_row, url=WEBSITE, text=WEBSITE,
+                  background=COLORS["panel"], font=FONT_BOLD).pack(
+                      side="right", padx=14, pady=(10, 0))
+
         sub = ttk.Frame(header, style="Panel.TFrame")
         sub.pack(fill="x", padx=8, pady=(0, 8))
         ttk.Label(sub, text=f"  {HEADER_SUBTITLE}", font=FONT_SMALL,
                   foreground=COLORS["muted"], background=COLORS["panel"]).pack(side="left")
-        LinkLabel(sub, url=WEBSITE, text=WEBSITE,
-                  background=COLORS["panel"], font=FONT_BOLD).pack(side="right", padx=12)
+        # Packed right-to-left so the visual order is pills -> actions.
+        ttk.Button(sub, text="Minimize to tray", command=self.hide_to_tray).pack(side="right", padx=6)
+        ttk.Button(sub, text="About",
+                   command=lambda: show_about(self.root, self._one_click_update)).pack(side="right")
         ttk.Button(sub, text="Update LIKAcs", style="Primary.TButton",
                    command=self._one_click_update).pack(side="right", padx=6)
-        ttk.Button(sub, text="About", command=lambda: show_about(self.root, self._one_click_update)).pack(side="right")
-        ttk.Button(sub, text="Minimize to tray", command=self.hide_to_tray).pack(side="right", padx=6)
+        ttk.Label(sub, textvariable=self.version_pill, style="Pill.TLabel").pack(side="right", padx=4)
+        ttk.Label(sub, textvariable=self.rooms_pill, style="PillAccent.TLabel").pack(side="right", padx=4)
+        ttk.Label(sub, textvariable=self.pcs_pill, style="PillGreen.TLabel").pack(side="right", padx=4)
 
-        self.notebook = ttk.Notebook(self.root)
-        self.notebook.pack(fill="both", expand=True, padx=8, pady=8)
+        self.notebook = SidebarBook(
+            self.root,
+            on_update=self._one_click_update,
+            on_create_room=self._goto_create_room,
+            on_help=lambda: open_url(f"{GITHUB_URL}#readme"),
+        )
+        self.notebook.pack(fill="both", expand=True)
+        self._tab_dashboard()
         self._tab_rooms()
         self._tab_stations()
         self._tab_rules()
@@ -163,10 +191,255 @@ class ControlCenterApp:
                            anchor="w", padding=(8, 4))
         status.pack(fill="x", side="bottom")
 
+    # --------------------------------------------------------------- dashboard
+    def _tab_dashboard(self) -> None:
+        """The new landing page: status at a glance, guided setup, live rooms."""
+        page = ttk.Frame(self.notebook, style="Book.TFrame")
+        self.notebook.add(page, text="  Dashboard  ")
+        self.dashboard_tab = page
+
+        head = ttk.Frame(page, style="Book.TFrame")
+        head.pack(fill="x", pady=(0, 12))
+        ttk.Label(head, text="Cafe overview", font=FONT_TITLE,
+                  foreground=COLORS["accent"], background=COLORS["bg"]).pack(side="left")
+        ttk.Label(head, text="   " + date.today().strftime("%A, %d %B %Y"),
+                  style="Sub.TLabel").pack(side="left")
+        ttk.Button(head, text="Refresh now", command=self._refresh_all).pack(side="right", padx=4)
+        ttk.Button(head, text="+  Create Room", style="Primary.TButton",
+                   command=self._goto_create_room).pack(side="right", padx=4)
+
+        kpis = ttk.Frame(page, style="Book.TFrame")
+        kpis.pack(fill="x", pady=(0, 12))
+        self.kpi_vars: list[tk.StringVar] = []
+        for title, hint in (
+            ("PCs online", "DHCP-safe discovery"),
+            ("Live rooms", "Matches running now"),
+            ("Games detected", "CS2 + CS 1.6 installs"),
+            ("Software version", "GitHub verified"),
+        ):
+            card = ttk.LabelFrame(kpis, text=f" {title} ", style="Card.TLabelframe",
+                                  padding=(12, 8))
+            card.pack(side="left", fill="both", expand=True, padx=(0, 10))
+            var = tk.StringVar(value="–")
+            ttk.Label(card, textvariable=var, style="Kpi.TLabel").pack(anchor="w")
+            ttk.Label(card, text=hint, style="KpiSub.TLabel").pack(anchor="w")
+            self.kpi_vars.append(var)
+
+        middle = ttk.Frame(page, style="Book.TFrame")
+        middle.pack(fill="both", expand=True, pady=(0, 12))
+
+        quick = ttk.LabelFrame(middle, text=" Quick start ", style="Card.TLabelframe",
+                               padding=12)
+        quick.pack(side="left", fill="both", expand=True, padx=(0, 10))
+        self.quick_done_var = tk.StringVar(value="0 of 5 done")
+        ttk.Label(quick, textvariable=self.quick_done_var, style="KpiSub.TLabel").pack(anchor="e")
+        self.quick_progress = ttk.Progressbar(quick, mode="determinate", maximum=100)
+        self.quick_progress.pack(fill="x", pady=(0, 10))
+        self.quick_steps: list[tuple[ttk.Label, ttk.Label, ttk.Label]] = []
+        steps = (
+            ("Install LIKAcs", "Setup wizard completed"),
+            ("Discover station PCs", "Start the Station Agent on each gaming PC"),
+            ("Run 1-Click Station Setup", "Official cfg files + lika aliases written"),
+            ("Create a room", "Use + Create Room to add your first match"),
+            ("Start a match", "One click when your players are ready"),
+        )
+        for i, (title, hint) in enumerate(steps):
+            row = ttk.Frame(quick, style="Card.TFrame")
+            row.pack(fill="x", pady=3)
+            mark = ttk.Label(row, text=str(i + 1), style="StepPending.TLabel", width=3)
+            mark.pack(side="left", anchor="n")
+            body = ttk.Frame(row, style="Card.TFrame")
+            body.pack(side="left", fill="x", expand=True)
+            title_label = ttk.Label(body, text=title, font=FONT_BOLD,
+                                    background=COLORS["panel"], foreground=COLORS["fg"])
+            title_label.pack(anchor="w")
+            hint_label = ttk.Label(body, text=hint, style="KpiSub.TLabel")
+            hint_label.pack(anchor="w")
+            self.quick_steps.append((mark, title_label, hint_label))
+        ttk.Label(quick, text="Every step has a button right here in this window.",
+                  style="KpiSub.TLabel").pack(anchor="w", pady=(10, 0))
+
+        live = ttk.LabelFrame(middle, text=" Live rooms ", style="Card.TLabelframe", padding=12)
+        live.pack(side="right", fill="both", expand=True)
+        self.live_count_var = tk.StringVar(value="No live rooms yet")
+        ttk.Label(live, textvariable=self.live_count_var, style="KpiSub.TLabel").pack(anchor="w")
+        self.room_cards: list[dict[str, Any]] = []
+        self.room_card_ids: list[str] = []
+        holder = ttk.Frame(live, style="Card.TFrame")
+        holder.pack(fill="both", expand=True, pady=(8, 0))
+        holder.columnconfigure(0, weight=1)
+        for i in range(2):
+            card = ttk.Frame(holder, style="Room.TFrame", padding=10)
+            card.grid(row=i, column=0, sticky="ew", pady=5)
+            top = ttk.Frame(card, style="Room.TFrame")
+            top.pack(fill="x")
+            game_var = tk.StringVar(value="CS2")
+            name_var = tk.StringVar(value="Room")
+            meta_var = tk.StringVar(value="–")
+            players_var = tk.StringVar(value="–")
+            ttk.Label(top, textvariable=game_var, style="Game.TLabel").pack(side="left")
+            ttk.Label(top, textvariable=name_var, style="RoomTitle.TLabel").pack(side="left", padx=8)
+            ttk.Label(top, text="LIVE", style="Live.TLabel").pack(side="right")
+            ttk.Label(card, textvariable=meta_var, style="RoomSub.TLabel").pack(
+                anchor="w", pady=(8, 2))
+            line = ttk.Frame(card, style="Room.TFrame")
+            line.pack(fill="x")
+            ttk.Label(line, textvariable=players_var, style="RoomSub.TLabel").pack(side="left")
+            progress = ttk.Progressbar(line, mode="determinate", maximum=100, length=160)
+            progress.pack(side="left", padx=10, fill="x", expand=True)
+            ttk.Button(line, text="Manage room →", style="CardLink.TButton",
+                       command=lambda index=i: self._open_dashboard_room(index)).pack(side="right")
+            self.room_cards.append({"frame": card, "game": game_var, "name": name_var,
+                                    "meta": meta_var, "players": players_var,
+                                    "progress": progress})
+            self.room_card_ids.append("")
+        ttk.Button(live, text="View all rooms →", style="CardLink.TButton",
+                   command=self._goto_rooms).pack(anchor="e")
+
+        bottom = ttk.Frame(page, style="Book.TFrame")
+        bottom.pack(fill="x")
+        pcs = ttk.LabelFrame(bottom, text=" Station PCs ", style="Card.TLabelframe", padding=10)
+        pcs.pack(side="left", fill="both", expand=True, padx=(0, 10))
+        self.pc_count_var = tk.StringVar(value="No station PCs discovered yet")
+        ttk.Label(pcs, textvariable=self.pc_count_var, style="KpiSub.TLabel").pack(anchor="w")
+        tiles = ttk.Frame(pcs, style="Card.TFrame")
+        tiles.pack(fill="x", pady=(8, 0))
+        for column in range(6):
+            tiles.columnconfigure(column, weight=1)
+        self.pc_tiles: list[dict[str, Any]] = []
+        for i in range(12):
+            tile = ttk.Frame(tiles, style="Tile.TFrame", padding=6)
+            tile.grid(row=i // 6, column=i % 6, sticky="ew", padx=4, pady=4)
+            dot = ttk.Label(tile, text="●", font=FONT_SMALL,
+                            background=COLORS["panel2"], foreground=COLORS["green"])
+            dot.pack(side="left")
+            labels = ttk.Frame(tile, style="Tile.TFrame")
+            labels.pack(side="left", padx=(4, 0))
+            name_var = tk.StringVar(value=f"PC {i + 1}")
+            sub_var = tk.StringVar(value="Offline")
+            ttk.Label(labels, textvariable=name_var, font=FONT_BOLD,
+                      background=COLORS["panel2"], foreground=COLORS["fg"]).pack(anchor="w")
+            sub_label = ttk.Label(labels, textvariable=sub_var, font=("Segoe UI", 8),
+                                  background=COLORS["panel2"], foreground=COLORS["muted"])
+            sub_label.pack(anchor="w")
+            self.pc_tiles.append({"frame": tile, "dot": dot, "name": name_var,
+                                  "sub": sub_var, "sub_label": sub_label})
+
+        activity = ttk.LabelFrame(bottom, text=" Recent activity ",
+                                  style="Card.TLabelframe", padding=10)
+        activity.pack(side="right", fill="both", expand=True)
+        self.activity_vars: list[tk.StringVar] = []
+        for _ in range(4):
+            var = tk.StringVar(value="–")
+            ttk.Label(activity, textvariable=var, font=FONT_SMALL,
+                      background=COLORS["panel"], foreground=COLORS["fg"],
+                      anchor="w").pack(fill="x", pady=4)
+            self.activity_vars.append(var)
+
+    # --------------------------------------------------------- dashboard data
+    def _goto_rooms(self) -> None:
+        self.notebook.select(self.rooms_tab)
+
+    def _goto_create_room(self) -> None:
+        self.notebook.select(self.rooms_tab)
+        try:
+            self.new_name_entry.focus_set()
+        except (AttributeError, tk.TclError):
+            pass
+
+    def _open_dashboard_room(self, index: int) -> None:
+        room_id = self.room_card_ids[index] if index < len(self.room_card_ids) else ""
+        if room_id:
+            self.selected_room_id = room_id
+            self._need_refresh = True
+        self._goto_rooms()
+
+    def _refresh_activity(self) -> None:
+        if not hasattr(self, "activity_vars"):
+            return
+        lines = list(reversed(self._activity[-4:]))
+        for i, var in enumerate(self.activity_vars):
+            var.set(lines[i] if i < len(lines) else "–")
+
+    def _refresh_dashboard(self, stations: list[dict[str, Any]], rooms: list[Any]) -> None:
+        """Update every dashboard widget from the live Control Center state."""
+        if not hasattr(self, "kpi_vars"):
+            return
+        live = [room for room in rooms if room.state == "live"]
+        games = {str(item.get("game", "")).upper()
+                 for station in stations for item in (station.get("installs") or [])
+                 if item.get("exists") and item.get("game")}
+        for var, value in zip(self.kpi_vars, (
+                str(len(stations)), str(len(live)), str(len(games)), f"v{VERSION}")):
+            var.set(value)
+        self.pcs_pill.set(f"{len(stations)} PCs online")
+        self.rooms_pill.set(f"{len(live)} rooms live")
+        self.version_pill.set(f"v{VERSION}")
+        self.notebook.set_badge(self.stations_tab, str(len(stations)) if stations else "")
+        self.notebook.set_badge(self.rooms_tab, str(len(rooms)) if rooms else "")
+
+        setups = any((station.get("installs") or []) for station in stations)
+        checks = [True, bool(stations), bool(setups), bool(rooms), bool(live)]
+        hints = [
+            "Setup wizard completed",
+            (f"{len(stations)} PCs found on the LAN automatically" if stations
+             else "Start the Station Agent on each gaming PC"),
+            ("Official cfg files + lika aliases written" if setups
+             else "Click 1-Click Station Setup on each PC"),
+            (f"{rooms[0].name}  ·  {rooms[0].preset}  ·  {rooms[0].map}" if rooms
+             else "Use + Create Room to add your first match"),
+            (f"{len(live)} match(es) live" if live
+             else "One click when your players are ready"),
+        ]
+        for i, (mark, _title, hint_label) in enumerate(self.quick_steps):
+            mark.configure(text="✓" if checks[i] else str(i + 1),
+                           style="StepDone.TLabel" if checks[i] else "StepPending.TLabel")
+            hint_label.configure(text=hints[i])
+        self.quick_progress["value"] = sum(checks) * 20
+        self.quick_done_var.set(f"{sum(checks)} of 5 done")
+
+        self.live_count_var.set(
+            f"{len(live)} active" if live else "No live rooms yet")
+        for i, card in enumerate(self.room_cards):
+            if i < len(live):
+                room = live[i]
+                host = self.control.station(room.host_station_id) or {}
+                card["frame"].grid()
+                card["game"].set("CS2" if room.game == "cs2" else "CS 1.6")
+                card["name"].set(room.name)
+                card["meta"].set(
+                    f"{room.preset}  ·  {room.map}  ·  hosted by {host.get('label', 'PC')}")
+                assigned = len(room.station_ids or [])
+                card["players"].set(f"{assigned} PCs assigned")
+                card["progress"]["value"] = min(100, int(assigned * 100 / max(1, len(stations))))
+                self.room_card_ids[i] = room.id
+            else:
+                card["frame"].grid_remove()
+                self.room_card_ids[i] = ""
+
+        self.pc_count_var.set(
+            f"{len(stations)} online  ·  0 offline" if stations
+            else "No station PCs discovered yet")
+        for i, tile in enumerate(self.pc_tiles):
+            if i < len(stations):
+                station = stations[i]
+                room = self.control.rooms.room_for_station(str(station.get("id", "")))
+                tile["frame"].grid()
+                tile["name"].set(str(station.get("label") or f"PC {i + 1}"))
+                tile["sub"].set(f"Host · {room.name}" if room else "Online · CS2")
+                tile["sub_label"].configure(
+                    foreground=COLORS["amber"] if room else COLORS["muted"])
+                tile["dot"].configure(foreground=COLORS["green"])
+            else:
+                tile["frame"].grid_remove()
+        self._refresh_activity()
+
+
     # ------------------------------------------------------------------ rooms
     def _tab_rooms(self) -> None:
-        tab = ttk.Frame(self.notebook)
+        tab = ttk.Frame(self.notebook, style="Book.TFrame")
         self.notebook.add(tab, text="  Rooms & Matches  ")
+        self.rooms_tab = tab
 
         create = ttk.LabelFrame(tab, text=" Create a new room ", style="Card.TLabelframe")
         create.pack(fill="x", padx=8, pady=(8, 4))
@@ -182,7 +455,8 @@ class ControlCenterApp:
         row = ttk.Frame(create, style="Panel.TFrame")
         row.pack(fill="x", pady=4)
         ttk.Label(row, text="Name", style="Panel.TLabel").grid(row=0, column=0, padx=(10, 4))
-        ttk.Entry(row, textvariable=self.new_name, width=14).grid(row=0, column=1, padx=4)
+        self.new_name_entry = ttk.Entry(row, textvariable=self.new_name, width=14)
+        self.new_name_entry.grid(row=0, column=1, padx=4)
         ttk.Label(row, text="Game", style="Panel.TLabel").grid(row=0, column=2, padx=(12, 4))
         ttk.Combobox(row, textvariable=self.new_game, width=20, state="readonly",
                      values=["cs2", "cs16"]).grid(row=0, column=3, padx=4)
@@ -303,8 +577,9 @@ class ControlCenterApp:
 
     # --------------------------------------------------------------- stations
     def _tab_stations(self) -> None:
-        tab = ttk.Frame(self.notebook)
+        tab = ttk.Frame(self.notebook, style="Book.TFrame")
         self.notebook.add(tab, text="  Station PCs  ")
+        self.stations_tab = tab
         top = ttk.LabelFrame(tab, text=" Discovered gaming PCs (automatic LAN IP discovery, no static IPs) ",
                              style="Card.TLabelframe")
         top.pack(fill="both", expand=True, padx=8, pady=8)
@@ -477,6 +752,7 @@ class ControlCenterApp:
         self.status_var.set(status_bar_text(len(stations),
                                             sum(1 for r in rooms if r.state == "live"),
                                             self.control.last_error))
+        self._refresh_dashboard(stations, rooms)
 
     def _refresh_station_tree(self, stations: list[dict[str, Any]]) -> None:
         self.station_tree.delete(*self.station_tree.get_children())
