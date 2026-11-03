@@ -16,6 +16,13 @@ LIKAcs turns any LAN switch (2 PCs → 50+ PCs) into a cafe match-management sys
 | Laptop | Lightweight remote Control Center — a few MB, **no Steam, no CS2 install, no Python, no Node** required. The same Control Panel can also be opened directly on PC 1 / PC 2 / any gaming PC. |
 | Updates | **One click in the app** → GitHub Releases → SHA-256 verified → self-install with rollback; optionally push the same verified exe to every LAN Station PC |
 
+![LIKAcs Control Center workspace (design preview)](preview-v1.2.0.png)
+
+*Design preview — the v1.2.0 Control Center: sidebar navigation, Cafe overview
+dashboard with KPI cards and a Quick start checklist, live rooms, station PCs
+and recent activity. All text and branding shown are from the real app.*
+
+
 ---
 
 ## Contents
@@ -23,19 +30,20 @@ LIKAcs turns any LAN switch (2 PCs → 50+ PCs) into a cafe match-management sys
 1. [The 100% VAC-safe promise](#the-100-vac-safe-promise)
 2. [Architecture](#architecture)
 3. [Install (one download, one wizard)](#install-one-download-one-wizard)
-4. [Quick start for a cafe](#quick-start-for-a-cafe)
-5. [1-Click Station Setup](#1-click-station-setup)
-6. [Multiple simultaneous rooms](#multiple-simultaneous-rooms)
-7. [Smart `lika` join and F10](#smart-lika-join-and-f10)
-8. [Cafe rules & live controls](#cafe-rules--live-controls)
-9. [System tray, tooltip and auto-start](#system-tray-tooltip-and-auto-start)
-10. [Start & Connect Selected PCs](#start--connect-selected-pcs)
-11. [Updates: GitHub → laptop → all cafe PCs](#updates-github--laptop--all-cafe-pcs)
-12. [Standalone .exe and GitHub Actions](#standalone-exe-and-github-actions)
-13. [Ports, firewall & LAN keys](#ports-firewall--lan-keys)
-14. [Troubleshooting](#troubleshooting)
-15. [Development](#development)
-16. [License](#license)
+4. [The Control Center workspace](#the-control-center-workspace)
+5. [Quick start for a cafe](#quick-start-for-a-cafe)
+6. [1-Click Station Setup](#1-click-station-setup)
+7. [Multiple simultaneous rooms](#multiple-simultaneous-rooms)
+8. [Smart `lika` join and F10](#smart-lika-join-and-f10)
+9. [Cafe rules & live controls](#cafe-rules--live-controls)
+10. [System tray, tooltip and auto-start](#system-tray-tooltip-and-auto-start)
+11. [Start & Connect Selected PCs](#start--connect-selected-pcs)
+12. [Updates: GitHub → laptop → all cafe PCs](#updates-github--laptop--all-cafe-pcs)
+13. [Standalone .exe and GitHub Actions](#standalone-exe-and-github-actions)
+14. [Ports, firewall & LAN keys](#ports-firewall--lan-keys)
+15. [Troubleshooting](#troubleshooting)
+16. [Development](#development)
+17. [License](#license)
 
 ---
 
@@ -119,6 +127,21 @@ Uninstall** (or run `LIKAcs.exe --mode=uninstall`). Cafe settings in
 > `LIKAcs-Setup.exe` for unattended deployment:
 > `LIKAcs-Setup.exe --silent --autostart --no-launch`. It is intentionally not
 > attached to the Releases page, so there is never a confusing choice of exes.
+
+---
+
+## The Control Center workspace
+
+The owner's laptop opens on the **Cafe overview** dashboard. The left sidebar
+never moves: Dashboard, Rooms & Matches, Station PCs, Rules & Presets, Updates,
+Settings and About, plus permanent **Update LIKAcs** and **Create a room**
+buttons, a VAC-safe badge and the likaapps.com help link.
+
+At a glance you get header status pills, four KPI cards (PCs online, live rooms,
+games detected, software version), a **Quick start** checklist that tracks your
+first five setup steps, live room cards with a one-click "Manage room" jump, a
+12-PC station grid that marks hosts, and a Recent activity feed. Everything
+updates live every 1.5 s — no tab hunting and no manual refreshing.
 
 ---
 
@@ -267,7 +290,7 @@ Agent window. There is nothing else to do.
 size before staging, and optionally restarts silently. That is the same
 mechanism used by the one-click button, extended across the LAN.
 
-For maintainers: tag `v1.1.0` and
+For maintainers: tag `v1.2.0` and
 [`.github/workflows/release.yml`](.github/workflows/release.yml) rebuilds the
 exes, renders all five windows against a real Tk root (from source **and**
 inside the built `.exe`), runs the installer smoke test, writes `latest.json`

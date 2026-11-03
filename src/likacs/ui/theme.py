@@ -11,6 +11,10 @@ COLORS = {
     "panel2": "#182742",
     "border": "#24375a",
     "fg": "#e8eef9",
+    "sidebar": "#101a2e",
+    "nav_active": "#1b2c4a",
+    "vac_bg": "#102822",
+    "vac_fg": "#8fb9aa",
     "muted": "#94a3b8",
     "accent": "#22d3ee",
     "accent_dark": "#0e7490",
@@ -84,4 +88,68 @@ def apply_theme(root: tk.Tk) -> ttk.Style:
               foreground=[("selected", "#ffffff")])
     style.configure("TProgressbar", background=COLORS["accent"], troughcolor=COLORS["panel2"])
     style.configure("TSeparator", background=COLORS["border"])
+
+    # --- v1.2.0 sidebar shell & dashboard card styles ---------------------
+    style.configure("Book.TFrame", background=COLORS["bg"])
+    style.configure("Sidebar.TFrame", background=COLORS["sidebar"])
+    style.configure("SidebarLogo.TLabel", background=COLORS["sidebar"],
+                    foreground=COLORS["accent"], font=FONT_TITLE)
+    style.configure("SidebarSub.TLabel", background=COLORS["sidebar"],
+                    foreground=COLORS["muted"], font=("Segoe UI", 9))
+    style.configure("SidebarSection.TLabel", background=COLORS["sidebar"],
+                    foreground="#6b7c96", font=("Segoe UI", 9, "bold"))
+    style.configure("NavRow.TFrame", background=COLORS["sidebar"])
+    style.configure("NavActiveRow.TFrame", background=COLORS["nav_active"])
+    style.configure("Nav.TButton", background=COLORS["sidebar"],
+                    foreground="#b6c2d6", font=FONT, anchor="w",
+                    padding=(12, 9), borderwidth=0, relief="flat")
+    style.map("Nav.TButton", background=[("active", COLORS["nav_active"])],
+              foreground=[("active", COLORS["fg"])])
+    style.configure("NavActive.TButton", background=COLORS["nav_active"],
+                    foreground="#ffffff", font=FONT_BOLD, anchor="w",
+                    padding=(12, 9), borderwidth=0, relief="flat")
+    style.map("NavActive.TButton", background=[("active", COLORS["nav_active"])])
+    style.configure("NavBadge.TLabel", background=COLORS["sidebar"],
+                    foreground=COLORS["muted"], font=FONT_SMALL)
+    style.configure("Vac.TFrame", background=COLORS["vac_bg"], relief="flat")
+    style.configure("Vac.TLabel", background=COLORS["vac_bg"],
+                    foreground=COLORS["green"], font=FONT_BOLD)
+    style.configure("VacSub.TLabel", background=COLORS["vac_bg"],
+                    foreground=COLORS["vac_fg"], font=("Segoe UI", 8))
+    style.configure("Link.TButton", background=COLORS["sidebar"],
+                    foreground=COLORS["link"], font=FONT_SMALL, anchor="w",
+                    padding=(0, 2), borderwidth=0, relief="flat")
+    style.map("Link.TButton", foreground=[("active", COLORS["accent"])])
+    style.configure("Pill.TLabel", background=COLORS["panel2"],
+                    foreground=COLORS["muted"], font=FONT_SMALL, padding=(9, 5),
+                    relief="flat")
+    style.configure("PillGreen.TLabel", background=COLORS["vac_bg"],
+                    foreground=COLORS["green"], font=FONT_BOLD, padding=(9, 5))
+    style.configure("PillAccent.TLabel", background="#0d2b35",
+                    foreground=COLORS["accent"], font=FONT_BOLD, padding=(9, 5))
+    style.configure("Card.TFrame", background=COLORS["panel"], relief="flat")
+    style.configure("Tile.TFrame", background=COLORS["panel2"], relief="flat")
+    style.configure("Kpi.TLabel", background=COLORS["panel"],
+                    foreground=COLORS["fg"], font=("Segoe UI", 20, "bold"))
+    style.configure("KpiTitle.TLabel", background=COLORS["panel"],
+                    foreground=COLORS["muted"], font=FONT_SMALL)
+    style.configure("KpiSub.TLabel", background=COLORS["panel"],
+                    foreground="#6b7c96", font=("Segoe UI", 9))
+    style.configure("StepDone.TLabel", background=COLORS["panel"],
+                    foreground=COLORS["green"], font=FONT_BOLD)
+    style.configure("StepPending.TLabel", background=COLORS["panel"],
+                    foreground=COLORS["amber"], font=FONT_BOLD)
+    style.configure("Live.TLabel", background=COLORS["vac_bg"],
+                    foreground=COLORS["green"], font=FONT_BOLD, padding=(8, 3))
+    style.configure("Game.TLabel", background="#0d2b35",
+                    foreground=COLORS["accent"], font=FONT_BOLD, padding=(7, 3))
+    style.configure("Room.TFrame", background=COLORS["panel2"], relief="flat")
+    style.configure("RoomTitle.TLabel", background=COLORS["panel2"],
+                    foreground=COLORS["fg"], font=FONT_BOLD)
+    style.configure("RoomSub.TLabel", background=COLORS["panel2"],
+                    foreground=COLORS["muted"], font=FONT_SMALL)
+    style.configure("CardLink.TButton", background=COLORS["panel2"],
+                    foreground=COLORS["link"], font=FONT_SMALL, anchor="e",
+                    padding=(2, 2), borderwidth=0, relief="flat")
+    style.map("CardLink.TButton", foreground=[("active", COLORS["accent"])])
     return style

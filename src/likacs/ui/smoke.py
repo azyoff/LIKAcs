@@ -7,7 +7,7 @@ three exes on the very first ``ttk.Label`` while every import-only CI check
 stayed green.
 
 This module builds the mode chooser, the About dialog, the full Control Center
-and the full Station Agent against a hidden Tk root, forces Tk to lay them out,
+the full Control Center (sidebar + Dashboard) and the Station Agent against a hidden Tk root, forces Tk to lay them out,
 and tears everything down. It is used by ``--smoke-gui``, by
 ``scripts/smoke_gui.py`` and by ``--self-test`` whenever Tk is available.
 No network services, tray icon or ``mainloop`` are started.
@@ -112,8 +112,14 @@ def _build_all_windows() -> int:
                 from ..control import ControlCenter
                 from .control_center import ControlCenterApp
 
-                stage("control center",
-                      lambda: ControlCenterApp(control=ControlCenter(), root=root, smoke=True))
+                def build_control_center() -> None:
+                    app = ControlCenterApp(control=ControlCenter(), root=root, smoke=True)
+                    # The v1.2.0 sidebar must expose all seven pages and land
+                    # on the Dashboard by default.
+                    assert app.notebook.page_count() == 7, app.notebook.page_count()
+                    assert app.notebook.current() is app.dashboard_tab
+
+                stage("control center", build_control_center)
                 _clear(root)
 
                 # 4. Full Station Agent window (including the one-click update bar).

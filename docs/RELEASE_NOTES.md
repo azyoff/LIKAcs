@@ -1,33 +1,29 @@
-LIKAcs v1.1.0 - professional installation and one-click updates.
+LIKAcs v1.2.0 - professional workspace, easier to run a cafe.
 
-NEW - Real installation, still ONE download
-  * Double-click LIKAcs.exe: on first run it opens the LIKAcs Setup wizard and
-    installs itself per-user (no administrator rights, no UAC).
-  * Start Menu shortcuts: LIKAcs, Control Center, Station Agent, likaapps.com.
-    Desktop shortcut and optional "start Station Agent with Windows".
-  * Proper Windows "Apps & features" entry with a working Uninstall command.
-  * Everything is removed cleanly by --mode=uninstall; your cafe settings stay.
-  * Silent IT rollout: LIKAcs-Setup.exe --silent --autostart (Actions artifact).
+NEW - A real Control Center workspace
+  * Left sidebar navigation (Dashboard, Rooms & Matches, Station PCs,
+    Rules & Presets, Updates, Settings, About) replaces the old cramped tabs.
+    Live counters on the Rooms and Station PCs rows.
+  * New Cafe overview dashboard: status pills in the header, four KPI cards
+    (PCs online, live rooms, games detected, version), a 5-step Quick start
+    checklist with progress, live room cards, a 12-PC station grid and a
+    Recent activity feed. Everything important is on one screen.
+  * Quick actions are always visible: "Update LIKAcs" and "Create a room" in
+    the sidebar, "Create Room" and "Refresh now" on the dashboard.
+  * "Manage room" and "View all rooms" jump straight to the full room editor;
+    the station grid shows which PCs are hosting which room at a glance.
 
-NEW - One click to update, directly from GitHub
-  * Prominent "Update LIKAcs" button in the header, Updates tab, tray menu and
-    About dialog of both apps. One click checks, downloads, verifies, stages
-    and restarts. No manual download, no renaming, no copying files.
-  * Reads latest.json from the stable /releases/latest/download/ URL: no API
-    rate limits. Cross-checks the SHA-256 in the manifest AND SHA256SUMS.txt.
-  * Safe swap: keeps a .bak, verifies the new exe boots with --version, and
-    automatically rolls back if it does not. Relaunches with your original
-    command line. Nothing is lost if the download or verification fails.
-  * Advanced: "Push update to ALL Station PCs" still streams the verified exe
-    over the signed LAN to every connected gaming PC.
+EASIER TO WORK WITH
+  * Guided first-run flow: the Quick start checklist tells you exactly what is
+    still missing (discover PCs, run 1-Click Setup, create a room, start a
+    match) and links to the button that does it.
+  * Status at a glance without clicking through tabs; activity feed mirrors
+    the operator log so you can see what just happened.
+  * Same one-file install and one-click GitHub self-update as v1.1.0:
+    install once, then never download an exe manually again.
+  * Consistent LIKAcs / likaapps.com branding, VAC-safe badge, help link and
+    version everywhere. Crisp on 4K displays, one instance only, friendly
+    logged errors instead of raw tracebacks.
 
-POLISH - 100x more professional
-  * Crisp text on 4K / scaled displays (per-monitor DPI awareness).
-  * Only one LIKAcs window can run at a time, with a friendly tray hint.
-  * No raw Python traceback dialogs: errors are explained in plain language
-    and written to %APPDATA%\LIKAcs\logs\LIKAcs.log with a Copy/Open action.
-  * Consistent LIKAcs / likaapps.com branding in the wizard, headers, footers,
-    tray, About dialog and every release artifact.
-
-Still 100% free, open-source and VAC-safe. Still Python stdlib only, no
-SteamCMD, no game memory access, no DLL injection. http://likaapps.com
+Still 100% free, open-source and VAC-safe. Python stdlib only, no SteamCMD,
+no game memory access, no DLL injection. http://likaapps.com

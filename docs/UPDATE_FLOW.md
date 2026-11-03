@@ -24,11 +24,11 @@ checksums. It contains:
 {
   "schema": 1,
   "product": "LIKAcs",
-  "version": "1.1.0",
-  "tag": "v1.1.0",
+  "version": "1.2.0",
+  "tag": "v1.2.0",
   "notes": "...",
-  "html_url": ".../releases/tag/v1.1.0",
-  "checksums_url": ".../releases/download/v1.1.0/SHA256SUMS.txt",
+  "html_url": ".../releases/tag/v1.2.0",
+  "checksums_url": ".../releases/download/v1.2.0/SHA256SUMS.txt",
   "assets": {
     "LIKAcs.exe": {"url": ".../LIKAcs.exe", "sha256": "...", "size": 12345678}
   }
